@@ -26,11 +26,18 @@ val testPanProg =
     (
       (strlit "func_one"),
       [] :(mlstring # shape) list,
-      panLang$Dec (strlit "a") (Const 0w) (
-        panLang$Dec (strlit "b") (Const 1w) (
-          panLang$Dec (strlit "c") (Const 4w) (
-            panLang$Dec (strlit "d") (Const 3w) (
-              ExtCall (strlit "out_morefun") (strlit "a") (strlit "b") (strlit "c") (strlit "d")) :64 panLang$prog)))
+      Dec (strlit "a") BaseAddr (
+        Dec (strlit "b") (Const 4w) (
+          Dec (strlit "c") (panLang$Op Add [BaseAddr;Const 8w]) (
+            Dec (strlit "d") (Const 0w) (         
+              FOLDR Seq (Return (Const 0w))
+              [
+                StoreByte BaseAddr (Const 65w);
+                StoreByte (panLang$Op Add [BaseAddr;Const 1w]) (Const 66w);
+                StoreByte (panLang$Op Add [BaseAddr;Const 2w]) (Const 67w);
+                StoreByte (panLang$Op Add [BaseAddr;Const 3w]) (Const 68w);
+                ExtCall (strlit "out_evenmorefun") (strlit "a") (strlit "b") (strlit "c") (strlit "d")
+              ]))))
     );
     (
       (strlit "func_two"),
@@ -50,7 +57,7 @@ val testPanProg =
            panLang$Dec (strlit "d") (Const 3w) (
              ExtCall (strlit "out_fun") (strlit "a") (strlit "b") (strlit "c") (strlit "d")) :64 panLang$prog)))
     )
-  ]”;
+  ]” |> EVAL |> concl |> rhs;
 
                     
 val testWordProg =
