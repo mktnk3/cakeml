@@ -58,6 +58,13 @@ void ffiout_morefun (unsigned char *c, long clen, unsigned char *a, long alen) {
     printf(":D\n");
 }
 
+void ffiout_evenmorefun (unsigned char *c, long clen, unsigned char *a, long alen) {
+  printf("We got the number %d", clen);
+  for(int i=0; i<clen;i++) {
+    putc(c[i], stdout);
+  }
+}
+
 void int_to_byte2(int i, unsigned char *b){
     /* i is encoded on 2 bytes */
     b[0] = (i >> 8) & 0xFF;
