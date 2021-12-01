@@ -20,44 +20,55 @@ val testPanProg =
     )
   ]”; *)
 
+val x = “(Const 65w) : 64 panLang$exp”
+val do_the_D = “T”
 
 val testPanProg =
  “[ 
-    (
-      (strlit "func_one"),
-      [] :(mlstring # shape) list,
-      Dec (strlit "a") BaseAddr (
-        Dec (strlit "b") (Const 4w) (
-          Dec (strlit "c") (panLang$Op Add [BaseAddr;Const 8w]) (
-            Dec (strlit "d") (Const 0w) (         
-              FOLDR Seq (Return (Const 0w))
-              [
-                StoreByte BaseAddr (Const 65w);
-                StoreByte (panLang$Op Add [BaseAddr;Const 1w]) (Const 66w);
-                StoreByte (panLang$Op Add [BaseAddr;Const 2w]) (Const 67w);
-                StoreByte (panLang$Op Add [BaseAddr;Const 3w]) (Const 68w);
-                ExtCall (strlit "out_evenmorefun") (strlit "a") (strlit "b") (strlit "c") (strlit "d")
-              ]))))
-    );
-    (
-      (strlit "func_two"),
-      [] :(mlstring # shape) list,
-      panLang$Dec (strlit "a") (Const 0w) (
-        panLang$Dec (strlit "b") (Const 1w) (
-          panLang$Dec (strlit "c") (Const 4w) (
-            panLang$Dec (strlit "d") (Const 3w) (
-              ExtCall (strlit "out_fun") (strlit "a") (strlit "b") (strlit "c") (strlit "d")) :64 panLang$prog)))
-    );
-    (
-     (strlit "func_three"),
+     (
+     (strlit "func_one"),
      [] :(mlstring # shape) list,
-     panLang$Dec (strlit "a") (Const 0w) (
-       panLang$Dec (strlit "b") (Const 1w) (
-         panLang$Dec (strlit "c") (Const 4w) (
-           panLang$Dec (strlit "d") (Const 3w) (
-             ExtCall (strlit "out_fun") (strlit "a") (strlit "b") (strlit "c") (strlit "d")) :64 panLang$prog)))
-    )
-  ]” |> EVAL |> concl |> rhs;
+     Dec (strlit "x") (Op Add [BaseAddr; Const 16w]) (
+       Dec (strlit "y") (Const 256w) (          
+         Dec (strlit "a") BaseAddr (
+           Dec (strlit "b") (Const 4w) (
+             Dec (strlit "c") (panLang$Op Add [BaseAddr;Const 8w]) (
+               Dec (strlit "d") (Const 0w) (         
+                 FOLDR Seq (Return (Const 0w))
+                 [
+                   StoreByte BaseAddr ^x;
+                   StoreByte (panLang$Op Add [BaseAddr;Const 1w]) (Const 66w);
+                   StoreByte (panLang$Op Add [BaseAddr;Const 2w]) (Const 67w);
+                   if ^do_the_D then
+                     StoreByte (panLang$Op Add [BaseAddr;Const 3w]) (Const 68w)
+                   else
+                     Skip
+                   ;
+                   StoreByte (Var(strlit "x")) (Const 1w);
+                   StoreByte (Op Add [Var(strlit "x"); Const 1w]) (Const 0w);
+                   ExtCall (strlit "get_arg") (strlit "a") (strlit "b") (strlit "x") (strlit "y");
+                   ExtCall (strlit "print_test") (strlit "x") (strlit "y") (strlit "c") (strlit "d")
+                 ]))))))
+         );
+       (
+       (strlit "func_two"),
+       [] :(mlstring # shape) list,
+       panLang$Dec (strlit "a") (Const 0w) (
+         panLang$Dec (strlit "b") (Const 1w) (
+           panLang$Dec (strlit "c") (Const 4w) (
+             panLang$Dec (strlit "d") (Const 3w) (
+               ExtCall (strlit "out_fun") (strlit "a") (strlit "b") (strlit "c") (strlit "d")) :64 panLang$prog)))
+       );
+       (
+       (strlit "func_three"),
+       [] :(mlstring # shape) list,
+       panLang$Dec (strlit "a") (Const 0w) (
+         panLang$Dec (strlit "b") (Const 1w) (
+           panLang$Dec (strlit "c") (Const 4w) (
+             panLang$Dec (strlit "d") (Const 3w) (
+               ExtCall (strlit "out_fun") (strlit "a") (strlit "b") (strlit "c") (strlit "d")) :64 panLang$prog)))
+       )
+       ]” |> EVAL |> concl |> rhs;
 
                     
 val testWordProg =
