@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -64,6 +65,50 @@ void ffiout_evenmorefun (unsigned char *c, long clen, unsigned char *a, long ale
     putc(c[i], stdout);
   }
 }
+
+#define ULCON       0x0000 /* line control */
+#define UCON        0x0004 /* control */
+#define UFCON       0x0008 /* fifo control */
+#define UMCON       0x000C /* modem control */
+#define UTRSTAT     0x0010 /* TX/RX status */
+#define UERSTAT     0x0014 /* RX error status */
+#define UFSTAT      0x0018 /* FIFO status */
+#define UMSTAT      0x001C /* modem status */
+#define UTXH        0x0020 /* TX buffer */
+#define URXH        0x0024 /* RX buffer */
+#define UBRDIV      0x0028 /* baud rate divisor */
+#define UFRACVAL    0x002C /* divisor fractional value */
+#define UINTP       0x0030 /* interrupt pending */
+#define UINTSP      0x0034 /* interrupt source pending */
+#define UINTM       0x0038 /* interrupt mask */
+
+/* Defined elsewhere in original implementation, set arbitrarily here so that
+ * the file compiles. */
+#define UART_PPTR 0x0000 
+
+#define UART_REG(X) ((volatile uint32_t *)(UART_PPTR + (X)))
+
+void ffi_read_reg_UTRSTAT (unsigned char *c, long clen, unsigned char *a, long alen) {
+    a[0]= (*UART_REG(UTRSTAT) >> 24) & 0xff; 
+    a[1]= (*UART_REG(UTRSTAT) >> 16) & 0xff; 
+    a[2]= (*UART_REG(UTRSTAT) >> 8) & 0xff; 
+    a[3]= *UART_REG(UTRSTAT) & 0xff; 
+}
+
+void ffi_read_reg_URXH (unsigned char *c, long clen, unsigned char *a, long alen) {
+    a[0]= (*UART_REG(URXH) >> 24) & 0xff;
+    a[1]= (*UART_REG(URXH) >> 16) & 0xff;
+    a[2]= (*UART_REG(URXH) >> 8) & 0xff;
+    a[3]= *UART_REG(URXH) & 0xff;
+}
+
+void ffi_write_reg_UTXH (unsigned char *c, long clen, unsigned char *a, long alen) {
+    *UART_REG(UTXH)= (c[0] & 0xff);
+}
+
+/* TO DO ? More general functions for reading and writing (specify address). */
+void ffi_uart_reg_write (unsigned char *c, long clen, unsigned char *a, long alen);
+void ffi_uart_reg_read (unsigned char *c, long clen, unsigned char *a, long alen);
 
 void int_to_byte2(int i, unsigned char *b){
     /* i is encoded on 2 bytes */
