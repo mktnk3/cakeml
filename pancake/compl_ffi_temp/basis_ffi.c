@@ -89,17 +89,15 @@ void ffiout_evenmorefun (unsigned char *c, long clen, unsigned char *a, long ale
 #define UART_REG(X) ((volatile uint32_t *)(UART_PPTR + (X)))
 
 void ffi_read_reg_UTRSTAT (unsigned char *c, long clen, unsigned char *a, long alen) {
-    a[0]= (*UART_REG(UTRSTAT) >> 24) & 0xff; 
-    a[1]= (*UART_REG(UTRSTAT) >> 16) & 0xff; 
-    a[2]= (*UART_REG(UTRSTAT) >> 8) & 0xff; 
-    a[3]= *UART_REG(UTRSTAT) & 0xff; 
+    uint32_t t= *UART_REG(UTRSTAT);
+    a[0]= (t >> 24) & 0xff;
+    a[1]= (t >> 16) & 0xff;
+    a[2]= (t >> 8) & 0xff;
+    a[3]= t & 0xff;
 }
 
 void ffi_read_reg_URXH (unsigned char *c, long clen, unsigned char *a, long alen) {
-    a[0]= (*UART_REG(URXH) >> 24) & 0xff;
-    a[1]= (*UART_REG(URXH) >> 16) & 0xff;
-    a[2]= (*UART_REG(URXH) >> 8) & 0xff;
-    a[3]= *UART_REG(URXH) & 0xff;
+    a[0]= (unsigned char) *UART_REG(URXH);
 }
 
 void ffi_write_reg_UTXH (unsigned char *c, long clen, unsigned char *a, long alen) {
