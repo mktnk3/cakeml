@@ -35,13 +35,21 @@ val uart_drv_putcharFun=
     Seq 
     (Dec (strlit "a1") BaseAddr (
       Dec (strlit "a2") (Op Add [BaseAddr; Const 64w]) (
-        Dec (strlit "l1") (Const 1w) (
+        Dec (strlit "l1") (Const 8w) (
           Dec (strlit "l2") (Const 32w) (
             Seq
               (While (Const 1w) (
-                Seq 
-                  (ExtCall (strlit $ "read_reg_UTRSTAT") (strlit "a1") (strlit "l1") (strlit "a2") (strlit "l2"))
-                  (If (Cmp Equal (Op And [Load One (Var $ strlit "a2"); ^TXBUF_EMPTY_const]) (Const 0w)) Skip Break)      
+                Seq
+                  (FOLDR Seq Skip [
+                     ExtCall (strlit $ "read_reg_UTRSTAT") (strlit "a1") (strlit "l1") (strlit "a2") (strlit "l2");
+                     Store (Op Add [BaseAddr; Const 128w]) (Const 0w);
+                     StoreByte (Op Add [BaseAddr; Const 160w]) (Var $ strlit "a2");
+                     StoreByte (Op Add [BaseAddr; Const 168w]) (Op Add [Var $ strlit "a2"; Const 8w]);
+                     StoreByte (Op Add [BaseAddr; Const 176w]) (Op Add [Var $ strlit "a2"; Const 16w]);
+                     StoreByte (Op Add [BaseAddr; Const 184w]) (Op Add [Var $ strlit "a2"; Const 24w]);
+                   ]                  
+                  ) 
+                  (If (Cmp Equal (Op And [Load One (Op Add [BaseAddr; Const 128w]); ^TXBUF_EMPTY_const]) (Const 0w)) Skip Break)      
               ))
               (Seq
                 (StoreByte BaseAddr (Var $ strlit "c")) 
@@ -49,25 +57,33 @@ val uart_drv_putcharFun=
               )
     )))))
     (Return $ Const 0w) :64 panLang$prog
-   )”; (* Note: original function does not return a value. *)
-    
+   )” |> EVAL |> concl |> rhs; (* Note: original function does not return a value. *)
+
 val uart_drv_getcharFun=
   “(strlit "uart_drv_getchar",
     [] :(mlstring # shape) list,     
     Dec (strlit "a1") BaseAddr (
       Dec (strlit "a2") (Op Add [BaseAddr; Const 64w]) (
-        Dec (strlit "l1") (Const 1w) (
+        Dec (strlit "l1") (Const 8w) (
           Dec (strlit "l2") (Const 32w) (
-            Seq               
-              (ExtCall (strlit $ "read_reg_UTRSTAT") (strlit "a1") (strlit "l1") (strlit "a2") (strlit "l2"))
-              (If (Op And [Load One (Var $ strlit "a2"); ^RXBUF_READY_const])
+            Seq
+              (FOLDR Seq Skip [
+                 ExtCall (strlit $ "read_reg_UTRSTAT") (strlit "a1") (strlit "l1") (strlit "a2") (strlit "l2");
+                 Store (Op Add [BaseAddr; Const 128w]) (Const 0w);
+                 StoreByte (Op Add [BaseAddr; Const 160w]) (Var $ strlit "a2");
+                 StoreByte (Op Add [BaseAddr; Const 168w]) (Op Add [Var $ strlit "a2"; Const 8w]);
+                 StoreByte (Op Add [BaseAddr; Const 176w]) (Op Add [Var $ strlit "a2"; Const 16w]);
+                 StoreByte (Op Add [BaseAddr; Const 184w]) (Op Add [Var $ strlit "a2"; Const 24w]);
+               ]                  
+              )               
+              (If (Op And [Load One (Op Add [BaseAddr; Const 128w]); ^RXBUF_READY_const])
                 (Seq
                   (ExtCall (strlit $ "read_reg_URXH") (strlit "a1") (strlit "l1") (strlit "a2") (strlit "l2"))
                   (Return (LoadByte (Var $ strlit "a2"))))
                 (Return ^minus_one_const)
               )     
     )))) :64 panLang$prog
-   )”;
+   )” |> EVAL |> concl |> rhs;
 
 val serialProg= “[^uart_drv_putcharFun; ^uart_drv_getcharFun]”;
 
