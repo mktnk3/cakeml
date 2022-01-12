@@ -30,7 +30,7 @@ Proof
   (* TODO *)
 QED
         
-Theorem uart_drv_getcharFun_no_break:
+Theorem uart_drv_getcharFun_no_error:
   ∀ck be mem memaddrs ffi res s.
     (evaluate (Call Tail (Label (strlit "uart_drv_getchar")) [],
                uart_init_state ck be mem memaddrs ffi) = (res,s)) ∧
