@@ -163,7 +163,7 @@ Definition eval_def:
   (eval s (Shift sh e n) =
     case eval s e of
      | SOME (ValWord w) => OPTION_MAP ValWord (word_sh sh w n)
-     | _ => NONE)
+     | _ => NONE) ∧
   (eval s BaseAddr =
     SOME (ValWord s.base_addr)
   )
