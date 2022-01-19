@@ -1,3 +1,6 @@
+(*
+a
+*)
 open preamble backendTheory panLangTheory word_to_wordTheory pan_to_wordTheory x64_configTheory compilationLib;
 
 val _ = new_theory "serialPanDrv";
@@ -32,7 +35,7 @@ val minus_one_const= “(panLang$Const $ n2w $ 2**64 - 1) :64 panLang$exp” |> 
 val uart_drv_putcharFun=
   “(strlit "uart_drv_putchar",
     [(strlit "c", One)],
-    Seq 
+    Seq
     (Dec (strlit "a1") BaseAddr (
       Dec (strlit "a2") (Op Add [BaseAddr; Const 64w]) (
         Dec (strlit "l1") (Const 8w) (
@@ -47,12 +50,12 @@ val uart_drv_putcharFun=
                      StoreByte (Op Add [BaseAddr; Const 168w]) (Op Add [Var $ strlit "a2"; Const 8w]);
                      StoreByte (Op Add [BaseAddr; Const 176w]) (Op Add [Var $ strlit "a2"; Const 16w]);
                      StoreByte (Op Add [BaseAddr; Const 184w]) (Op Add [Var $ strlit "a2"; Const 24w]);
-                   ]                  
-                  ) 
-                  (If (Cmp Equal (Op And [Load One (Op Add [BaseAddr; Const 128w]); ^TXBUF_EMPTY_const]) (Const 0w)) Skip Break)      
+                   ]
+                  )
+                  (If (Cmp Equal (Op And [Load One (Op Add [BaseAddr; Const 128w]); ^TXBUF_EMPTY_const]) (Const 0w)) Skip Break)
               ))
               (Seq
-                (StoreByte BaseAddr (Var $ strlit "c")) 
+                (StoreByte BaseAddr (Var $ strlit "c"))
                 (ExtCall (strlit "write_reg_UTXH") (strlit "a1") (strlit "l1") (strlit "a2") (strlit "l2"))
               )
     )))))
@@ -65,7 +68,7 @@ End
 
 val uart_drv_getcharFun=
   “(strlit "uart_drv_getchar",
-    [] :(mlstring # shape) list,     
+    [] :(mlstring # shape) list,
     Dec (strlit "a1") BaseAddr (
       Dec (strlit "a2") (Op Add [BaseAddr; Const 64w]) (
         Dec (strlit "l1") (Const 8w) (
@@ -78,14 +81,14 @@ val uart_drv_getcharFun=
                  StoreByte (Op Add [BaseAddr; Const 168w]) (Op Add [Var $ strlit "a2"; Const 8w]);
                  StoreByte (Op Add [BaseAddr; Const 176w]) (Op Add [Var $ strlit "a2"; Const 16w]);
                  StoreByte (Op Add [BaseAddr; Const 184w]) (Op Add [Var $ strlit "a2"; Const 24w]);
-               ]                  
-              )               
+               ]
+              )
               (If (Op And [Load One (Op Add [BaseAddr; Const 128w]); ^RXBUF_READY_const])
                 (Seq
                   (ExtCall (strlit $ "read_reg_URXH") (strlit "a1") (strlit "l1") (strlit "a2") (strlit "l2"))
                   (Return (LoadByte (Var $ strlit "a2"))))
                 (Return ^minus_one_const)
-              )     
+              )
     )))) :64 panLang$prog
    )” |> EVAL |> concl |> rhs;
 
@@ -97,6 +100,6 @@ Definition serialProg_def:
   serialProg = [uart_drv_putcharFun; uart_drv_getcharFun]
 End
 
-(* Driver set-up seems to occur somewhere else. *)   
+(* Driver set-up seems to occur somewhere else. *)
 
 val _ = export_theory();

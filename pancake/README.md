@@ -1,6 +1,9 @@
 The Pancake compiler, i.e. a C-like compiler built from the lower
 parts of the CakeML compiler.
 
+[compl_ffi_temp](compl_ffi_temp):
+FFI for Pancake
+
 [crepLangScript.sml](crepLangScript.sml):
 Abstract syntax of Crepe language
 Crepe: instrctuons are similar to that of
@@ -27,6 +30,9 @@ Correctness proof for loop_remove
 
 [loop_to_wordScript.sml](loop_to_wordScript.sml):
 Compilation from looLang to wordLang.
+
+[newPanProgScript.sml](newPanProgScript.sml):
+A
 
 [panLangScript.sml](panLangScript.sml):
 Abstract syntax for Pancake language.
@@ -56,11 +62,11 @@ Proofs files for compiling Pancake.
 [semantics](semantics):
 Semantics for Pancake and its intermediate languages.
 
+[serial](serial):
+A serial driver example in Pancake.
+
 [taParserScript.sml](taParserScript.sml):
 Parser for compactDSL programs
-
-[ta_comp_exampleScript.sml](ta_comp_exampleScript.sml):
-This is an example compilation of a TA program
 
 [ta_progs](ta_progs):
 Some sample timed automata (TA) programs.

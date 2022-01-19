@@ -1,3 +1,6 @@
+(*
+A
+*)
 open preamble backendTheory panLangTheory word_to_wordTheory pan_to_wordTheory x64_configTheory compilationLib;
 
 val _ = new_theory "newPanProg";
@@ -9,7 +12,7 @@ val _ = new_theory "newPanProg";
       [(strlit "x", One)],
       panLang$Dec (strlit "x") (panLang$Const 9w) (panLang$Return (panLang$Var (strlit "x")) :64 panLang$prog)
     )
-  ]”; 
+  ]”;
 
 val testPanProg =
  “[
@@ -24,16 +27,16 @@ val x = “(Const 65w) : 64 panLang$exp”
 val do_the_D = “T”
 
 val testPanProg =
- “[ 
+ “[
      (
      (strlit "func_one"),
      [] :(mlstring # shape) list,
      Dec (strlit "x") (Op Add [BaseAddr; Const 16w]) (
-       Dec (strlit "y") (Const 256w) (          
+       Dec (strlit "y") (Const 256w) (
          Dec (strlit "a") BaseAddr (
            Dec (strlit "b") (Const 4w) (
              Dec (strlit "c") (panLang$Op Add [BaseAddr;Const 8w]) (
-               Dec (strlit "d") (Const 0w) (         
+               Dec (strlit "d") (Const 0w) (
                  FOLDR Seq (Return (Const 0w))
                  [
                    StoreByte BaseAddr ^x;
@@ -70,7 +73,7 @@ val testPanProg =
        )
        ]” |> EVAL |> concl |> rhs;
 
-                    
+
 val testWordProg =
   EVAL “pan_to_word$compile_prog ^testPanProg” |> concl |> rhs;
 
@@ -143,7 +146,7 @@ val finRes =
   eval “from_word (x64_backend_config with clos_conf updated_by (λc. c with start := first_name)) LN ^wordyWordProg”;
 
 
-(*    
+(*
 val testCompPan =
   EVAL “pan_to_target$compile_prog x64_backend_config ^testPanProg”;
 *)
@@ -185,5 +188,5 @@ fun compile name prog = let
                  data_name config_name (name^".S");
   in from_word_0_thm end
 
-        
+
 val _ = export_theory();
