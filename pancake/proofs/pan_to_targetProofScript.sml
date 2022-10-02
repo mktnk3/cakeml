@@ -465,7 +465,7 @@ Proof
   \\ simp []
   \\ qexists_tac ‘asm_conf3’>>gs[]
 QED
-
+ 
 
 (********)
 
@@ -480,7 +480,8 @@ Theorem pan_to_target_compile_semantics:
   s.locals = FEMPTY ∧ size_of_eids pan_code < dimword (:α) ∧
   FDOM s.eshapes = FDOM ((get_eids pan_code):mlstring |-> 'a word) ∧
   backend_config_ok c ∧ lab_to_targetProof$mc_conf_ok mc ∧
-  mc_init_ok c mc ∧ s.ffi = ffi ∧
+  mc_init_ok c mc ∧
+  s.ffi = ffi ∧ mc.target.config.big_endian = s.be ∧
   installed bytes cbspace bitmaps data_sp c'.lab_conf.ffi_names (heap_regs c.stack_conf.reg_names) mc ms ∧
   semantics s start ≠ Fail ⇒
   machine_sem (mc:(α,β,γ) machine_config) (ffi:'ffi ffi_state) ms ⊆
@@ -549,13 +550,13 @@ Proof
     Cases_on ‘x’>>gs[]>>rveq>>
     gs[backendTheory.config_component_equality])>>gs[]>>
               
-  conj_tac >- (
+  conj_tac >- ( (* good_code mc.target.config LN lprog*)
   irule (INST_TYPE [beta|->alpha] pan_to_lab_good_code_lemma)>>
   gs[]>>
   rpt (first_assum $ irule_at Any)>>
   qpat_x_assum ‘Abbrev (lprog = _)’ (assume_tac o GSYM o REWRITE_RULE [markerTheory.Abbrev_def])>>
   first_assum $ irule_at Any>>
-  cheat>>
+  cheat)>>
 
   (* lab_to_stack *)
   qmatch_goalsub_abbrev_tac ‘labSem$semantics labst’>>
@@ -573,7 +574,11 @@ Proof
     by gs[Abbr ‘labst’, Abbr ‘lprog’,
           lab_to_targetProofTheory.make_init_def]>>
   disch_then $ drule_at Any>>
-  gs[]>>
+  qabbrev_tac ‘sopt = full_make_init c.stack_conf c.data_conf max_heap sp mc.target.config.addr_offset bitmaps p labst
+             (set mc.callee_saved_regs) data_sp lorac’>>
+  Cases_on ‘sopt’>>gs[]>>
+  rename1 ‘_ = (sst, opt)’>>
+  disch_then $ drule_at (Pos hd)>>
   ‘labst.compile_oracle =
                          (λn.
                 (λ(c',p,b).
@@ -609,14 +614,56 @@ Proof
       cheat)>>
   gs[]>>
 
-  qabbrev_tac ‘sopt = full_make_init c.stack_conf c.data_conf max_heap sp
-             mc.target.config.addr_offset bitmaps p labst
-             (set mc.callee_saved_regs) sp lorac’>>
-  Cases_on ‘sopt’>>gs[]>>
-  rename1 ‘_ = (sst, opt)’>>
-  disch_then $ drule_at Any>>
-  ‘memory_assumption c.stack_conf.reg_names bitmaps sp labst’
-    by cheat>>gs[]>>
+  ‘memory_assumption c.stack_conf.reg_names bitmaps data_sp labst’
+    by (
+    gs[stack_to_labProofTheory.memory_assumption_def]>>
+    qpat_assum ‘Abbrev (labst = _)’ mp_tac>>
+    rewrite_tac[markerTheory.Abbrev_def]>>
+    rewrite_tac[lab_to_targetProofTheory.make_init_def,
+       labSemTheory.state_component_equality]>>
+    simp[]>>strip_tac>>gs[]>>
+    gs[backendProofTheory.heap_regs_def]>>
+
+    rewrite_tac[Once INTER_COMM]>>
+    rewrite_tac[UNION_OVER_INTER]>>
+    rewrite_tac[Once UNION_COMM]>>
+    irule miscTheory.fun2set_disjoint_union>>
+    gs[]>>
+    conj_tac >- (
+      irule backendProofTheory.word_list_exists_imp>>
+      gs[]>>
+      conj_tac >- (
+        gs[targetSemTheory.good_init_state_def]>>
+        cheat)>>
+
+      rewrite_tac[SET_EQ_SUBSET]>>
+      rw[] >- (
+        gs[SUBSET_DEF]>>strip_tac>>strip_tac>>
+        rewrite_tac[stack_removeProofTheory.addresses_thm]>>
+        rewrite_tac[IN_ABS]>>cheat)
+      >- (
+        
+        rewrite_tac[stack_removeProofTheory.addresses_thm]>>
+        rewrite_tac[SUBSET_DEF]>>strip_tac>>strip_tac>>
+        gs[IN_GSPEC_IFF]>>
+        rewrite_tac[IN_APP]>>
+        irule alignmentTheory.byte_aligned_add>>
+        gs[data_to_word_assignProofTheory.byte_aligned_bytes_in_word])>>
+      rewrite_tac[stack_removeProofTheory.addresses_thm]>>
+      rewrite_tac[SUBSET_DEF]>>strip_tac>>strip_tac>>
+      gs[IN_GSPEC_IFF]>>
+      ‘0 < w2n bytes_in_word’
+        by gs[labPropsTheory.good_dimindex_def,
+              byteTheory.bytes_in_word_def,
+              wordsTheory.dimword_def]>>
+      drule_all (iffLR X_LT_DIV)>>strip_tac>>
+      rw[]
+      >- (
+        rewrite_tac[WORD_LS]>>
+        gs[targetSemTheory.good_init_state_def]>>cheat)
+      >- cheat)>>
+    irule DISJOINT_INTER>>gs[DISJOINT_SYM])>>
+  gs[]>>
 
   (* apply stack_to_lab *)
   strip_tac>>
@@ -626,23 +673,37 @@ Proof
         
   (*  irule semanticsPropsTheory.implements'_trans>>*)
   irule_at Any $ METIS_PROVE [] “∀x y z. x = y ∧ y ∈ z ⇒ x ∈ z”>>
-  pop_assum $ irule_at Any>>
+    pop_assum $ irule_at Any>>
+                
+    
+
+
 
   (* word_to_stack *)
 
   (* instantiate / discharge *)
   ‘FST (word_to_stack_compile mc.target.config wprog) ≼ sst.bitmaps ∧
   sst.code = fromAList p’
-  by ((*gs[stack_to_labProofTheory.full_make_init_def]>>
-      gs[stack_removeProofTheory.make_init_any_def]>>
-      gs[stack_allocProofTheory.make_init_def]>>
-      Cases_on ‘opt’>>gs[]>>
-      gs[stack_removeProofTheory.make_init_opt_def]>>
-      gs[stack_namesProofTheory.make_init_def]>>
-      gs[stack_to_labProofTheory.make_init_def]>>
-      gs[stack_removeProofTheory.init_reduce_def]>>
-      gs[stack_removeProofTheory.init_prop_def]>>*)
-    cheat)>>
+    by (
+    gs[stack_to_labProofTheory.full_make_init_def]>>
+    gs[stack_removeProofTheory.make_init_opt_def]>>
+    Cases_on ‘opt’>>gs[]>>
+    gs[stack_removeProofTheory.make_init_any_def,
+       stack_allocProofTheory.make_init_def,
+       stack_to_labProofTheory.make_init_def,
+       stack_namesProofTheory.make_init_def]>>
+    qmatch_asmsub_abbrev_tac ‘evaluate (init_code gengc _ _, s')’>>
+    qmatch_asmsub_abbrev_tac ‘make_init_opt _ _ _ _ coracle jump off _ code _’>>
+    Cases_on ‘evaluate (init_code gengc max_heap sp, s')’>>gs[]>>
+    rename1 ‘evaluate _ = (q', r')’>>
+    Cases_on ‘q'’>>gs[]>>rveq>>
+    gs[stackSemTheory.state_component_equality]>>
+    Cases_on ‘make_init_opt gengc max_heap bitmaps data_sp coracle jump off sp code s'’>>
+    gs[stackSemTheory.state_component_equality]>>
+    gs[stack_removeProofTheory.make_init_opt_def]>>
+    gs[stack_removeProofTheory.init_reduce_def]>>    
+    gs[stack_removeProofTheory.init_prop_def]>>
+    rveq>>gs[stackSemTheory.state_component_equality])>>
 
   drule_at Any word_to_stackProofTheory.compile_semantics>>
   gs[]>>
@@ -663,7 +724,17 @@ Proof
             (LENGTH mc.target.config.avoid_regs + 5)) sst worac ∧
          ALOOKUP wprog raise_stub_location = NONE ∧
          ALOOKUP wprog store_consts_stub_location = NONE’
-    by cheat>>gs[]>>
+    by (
+conj_tac >- (
+      irule stack_to_labProofTheory.IMP_init_state_ok>>
+      gs[]>>
+        gs[EVERY_CONJ]
+      pairarg_tac>>gs[]>>
+      
+    
+
+
+    cheat>>gs[]>>
 
   (* apply word_to_stack *)
   qmatch_goalsub_abbrev_tac ‘wordSem$semantics wst _’>>
@@ -775,7 +846,11 @@ Proof
   Cases_on ‘make_init_opt gengc max_heap bitmaps sp coracle jump off sp code s'’>>gs[]>>
   
   gs[stack_removeProofTheory.make_init_opt_def]>>
+  gs[stack_removeProofTheory.init_prop_def]>>
   gs[stack_removeProofTheory.init_reduce_def]>>
+
+
+
   gs[stack_removeProofTheory.init_prop_def]>>
   rveq>>gs[stackSemTheory.state_component_equality]>>
   gs[wordSemTheory.isWord_def, wordSemTheory.theWord_def]>>
