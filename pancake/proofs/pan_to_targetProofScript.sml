@@ -764,7 +764,100 @@ Proof
   rpt (first_assum $ irule_at Any)>>
   qpat_x_assum ‘Abbrev (lprog = _)’ (assume_tac o GSYM o REWRITE_RULE [markerTheory.Abbrev_def])>>
   first_assum $ irule_at Any>>
-  cheat)>>
+  ‘labels_ok lprog’
+    by (rveq>>
+        gs[stack_to_labProofTheory.labels_ok_def]>>
+        irule stack_to_labProofTheory.stack_to_lab_compile_lab_pres>>
+        mp_tac (GEN_ALL word_to_stackProofTheory.word_to_stack_compile_lab_pres |> INST_TYPE [beta|->alpha])>>
+        disch_then (qspecl_then [‘wprog’, ‘mc.target.config’] mp_tac)>>
+        gs[]>>
+        strip_tac>>
+        drule backendProofTheory.compile_to_word_conventions2>>
+        strip_tac>>
+        qabbrev_tac ‘wprog0 = pan_to_word$compile_prog pan_code’>>
+        pop_assum (assume_tac o GSYM o REWRITE_RULE[markerTheory.Abbrev_def])>>
+        drule pan_to_word_compile_lab_pres>>strip_tac>>
+        ‘EVERY
+          (λ(n,m,p).
+               EVERY (λ(l1,l2). l1 = n ∧ l2 ≠ 0 ∧ l2 ≠ 1) (extract_labels p) ∧
+               ALL_DISTINCT (extract_labels p)) wprog’
+          by (
+          gs[LIST_REL_MAP_inv_image]>>
+          gs[LIST_REL_EL_EQN, EVERY_EL]>>rpt strip_tac>>
+          ntac 3 (first_x_assum $ qspec_then ‘n’ assume_tac)>>
+          gs[]>>
+          pairarg_tac>>gs[word_simpProofTheory.labels_rel_def]>>
+          pairarg_tac>>gs[]>>
+          rpt strip_tac>>
+          pairarg_tac>>gs[]>>
+          gs[]>>
+          ‘(l1, l2) ∈ set (extract_labels p'')’
+            by (irule (iffLR SUBSET_DEF)>>
+                qpat_x_assum ‘_ ⊆ _’ $ irule_at Any>>
+                gs[MEM_EL]>>metis_tac[])>>
+          gs[MEM_EL]>>
+          first_x_assum $ qspec_then ‘n'''''''’ assume_tac>>
+          pairarg_tac>>gs[]>>
+          ‘EL n (MAP FST wprog) = EL n (MAP FST wprog0)’
+            by gs[]>>
+          gs[EL_MAP])>>
+        gs[wordLangTheory.raise_stub_location_def,
+           wordLangTheory.store_consts_stub_location_def,
+           stackLangTheory.gc_stub_location_def,
+           backend_commonTheory.word_num_stubs_def,
+           backend_commonTheory.stack_num_stubs_def]>>
+        drule pan_to_wordProofTheory.first_compile_prog_all_distinct>>
+        gs[]>>strip_tac>>
+        qpat_x_assum ‘MAP FST wprog = _’ $ assume_tac o GSYM>>
+        gs[]>>
+        ‘ALL_DISTINCT (MAP FST p)’ by cheat>> (* proof?*)
+        gs[]>>cheat)>>   (* stub issue *)
+  gs[stack_to_labTheory.compile_def]>>rveq>>
+  irule stack_to_labProofTheory.compile_all_enc_ok_pre>>
+  conj_tac >-
+   (irule stack_namesProofTheory.stack_names_stack_asm_ok>>
+    gs[]>>
+    irule stack_removeProofTheory.stack_remove_stack_asm_name>>
+    gs[lab_to_targetProofTheory.mc_conf_ok_def]>>
+    gs[stackPropsTheory.reg_name_def, Abbr ‘sp’]>>
+    irule stack_allocProofTheory.stack_alloc_stack_asm_convs>>
+    gs[stackPropsTheory.reg_name_def]>>
+    assume_tac (GEN_ALL stack_rawcallProofTheory.stack_alloc_stack_asm_convs)>>
+    first_x_assum (qspecl_then [‘p’, ‘mc.target.config’] assume_tac)>>gs[]>>
+    gs[word_to_stackTheory.compile_def]>>
+    pairarg_tac>>gs[]>>
+    drule word_to_stackProofTheory.compile_word_to_stack_convs>>
+    gs[]>>rveq>>
+    disch_then $ qspec_then ‘mc.target.config’ mp_tac>>
+    impl_tac >- cheat>>
+    strip_tac>>gs[EVERY_EL]>>
+    ‘stack_asm_name mc.target.config
+           (raise_stub
+              (mc.target.config.reg_count −
+               (LENGTH mc.target.config.avoid_regs + 5))) ∧
+         stack_asm_name mc.target.config
+           (store_consts_stub
+              (mc.target.config.reg_count −
+               (LENGTH mc.target.config.avoid_regs + 5)))’
+      by gs[stackPropsTheory.stack_asm_name_def,
+            word_to_stackTheory.raise_stub_def,
+            word_to_stackTheory.store_consts_stub_def,
+            stackPropsTheory.reg_name_def]>>
+    gs[]>>rpt strip_tac>>gs[]
+    >- (first_x_assum $ qspec_then ‘n’ assume_tac>>
+        pairarg_tac>>gs[])
+    >- gs[stackPropsTheory.stack_asm_remove_def,
+            word_to_stackTheory.raise_stub_def,
+            word_to_stackTheory.store_consts_stub_def,
+            stackPropsTheory.reg_name_def]
+    >- gs[stackPropsTheory.stack_asm_remove_def,
+            word_to_stackTheory.raise_stub_def,
+            word_to_stackTheory.store_consts_stub_def,
+            stackPropsTheory.reg_name_def]>>           
+    first_x_assum $ qspec_then ‘n’ assume_tac>>
+    pairarg_tac>>gs[])>>
+  last_x_assum $ qspec_then ‘0w’ assume_tac>>
+  pop_assum $ irule>>gs[]>>cheat)>> (* 0w ≤ 8w ∧ -8w ≤ 0w *)
 
   (* lab_to_stack *)
   qmatch_goalsub_abbrev_tac ‘labSem$semantics labst’>>
