@@ -673,7 +673,30 @@ Proof
   drule loop_to_word_compile_prog_lab_pres>>gs[]
 QED
 
+Theorem MAP_LENGTH:
+  ∀l l' f. MAP f l = l' ⇒ LENGTH l = LENGTH l'
+Proof
+  gs[]
+  Induct>>gs[]
+QED
+                
+Theorem loop_to_word_compile_prog_FST_eq:
+  loop_to_word$compile_prog prog = prog' ⇒
+  MAP FST prog' = MAP FST prog
+Proof
+  strip_tac>>gs[loop_to_wordTheory.compile_prog_def]>>
+  ‘LENGTH prog = LENGTH prog'’ by (drule MAP_LENGTH>>gs[])>>
+  gs[MAP_EQ_EVERY2]>>gs[LIST_REL_EL_EQN]>>
+  strip_tac>>strip_tac>>gs[]>>rveq>>gs[EL_MAP]>>
+  pairarg_tac>>gs[]
+QED
 
+(*
+Theorem loop_to_word_compile_FST_eq:
+  loop_to_word$compile prog = prog' ⇒
+  MAP FST prog' = MAP FST prog
+Proof
+*)
 
 (********)
 
@@ -709,6 +732,9 @@ Proof
   qmatch_asmsub_abbrev_tac ‘Abbrev (_ = compile _ lprog)’>>
   (* unfolding done *)
 
+  drule backendProofTheory.compile_to_word_conventions2>>
+  strip_tac>>
+        
   (* apply lab_to_target *)
   (*  irule semanticsPropsTheory.implements'_trans>>*)
   irule SUBSET_TRANS>>
@@ -748,6 +774,10 @@ Proof
     gs[lab_to_targetProofTheory.compiler_oracle_ok_def]>>
     gs[Abbr ‘sorac’, Abbr ‘lorac’]>>
     conj_tac >- cheat>>
+            (* good_code mc.target.config c'.lab_conf.labels
+          (compile_no_stubs c.stack_conf.reg_names c.stack_conf.jump
+             mc.target.config.addr_offset sp p *)
+             
     rveq>>gs[backendTheory.config_component_equality]>>
     gs[lab_to_targetTheory.compile_def,
        lab_to_targetTheory.compile_lab_def]>>
@@ -766,7 +796,6 @@ Proof
   first_assum $ irule_at Any>>
   ‘labels_ok lprog’
     by (rveq>>
-        gs[stack_to_labProofTheory.labels_ok_def]>>
         irule stack_to_labProofTheory.stack_to_lab_compile_lab_pres>>
         mp_tac (GEN_ALL word_to_stackProofTheory.word_to_stack_compile_lab_pres |> INST_TYPE [beta|->alpha])>>
         disch_then (qspecl_then [‘wprog’, ‘mc.target.config’] mp_tac)>>
@@ -809,9 +838,11 @@ Proof
         drule pan_to_wordProofTheory.first_compile_prog_all_distinct>>
         gs[]>>strip_tac>>
         qpat_x_assum ‘MAP FST wprog = _’ $ assume_tac o GSYM>>
-        gs[]>>
-        ‘ALL_DISTINCT (MAP FST p)’ by cheat>> (* proof?*)
-        gs[]>>cheat)>>   (* stub issue *)
+        gs[]>>cheat)>>   (* stub issue?
+                    do we have "∀n ∈ FST MAP wprog. n > 6" ? *)
+            (* (¬MEM 5 (MAP FST wprog) ∧ ¬MEM 6 (MAP FST wprog)) ∧
+        EVERY (λn. n ≠ 0 ∧ n ≠ 1 ∧ n ≠ 2 ∧ n ≠ 4) (MAP FST wprog) *)
+
   gs[stack_to_labTheory.compile_def]>>rveq>>
   irule stack_to_labProofTheory.compile_all_enc_ok_pre>>
   conj_tac >-
@@ -829,7 +860,16 @@ Proof
     drule word_to_stackProofTheory.compile_word_to_stack_convs>>
     gs[]>>rveq>>
     disch_then $ qspec_then ‘mc.target.config’ mp_tac>>
-    impl_tac >- cheat>>
+    impl_tac >- 
+     gs[EVERY_EL]>>ntac 2 strip_tac>>
+    last_x_assum assume_tac>>
+    last_x_assum (qspec_then ‘n’ assume_tac)>> (* qpat_x *)
+    gs[]>>pairarg_tac>>gs[]>>
+    ‘∀n. n < LENGTH (pan_to_word_compile_prog pan_code) ⇒
+             (λ(n,m,prog). every_inst (inst_ok_less mc.target.config) prog)
+               (EL n (pan_to_word_compile_prog pan_code))’
+      by cheat>> (* prove this for pan_to_word *)
+    gs[])>>
     strip_tac>>gs[EVERY_EL]>>
     ‘stack_asm_name mc.target.config
            (raise_stub
@@ -843,7 +883,7 @@ Proof
             word_to_stackTheory.raise_stub_def,
             word_to_stackTheory.store_consts_stub_def,
             stackPropsTheory.reg_name_def]>>
-    gs[]>>rpt strip_tac>>gs[]
+  rw[]
     >- (first_x_assum $ qspec_then ‘n’ assume_tac>>
         pairarg_tac>>gs[])
     >- gs[stackPropsTheory.stack_asm_remove_def,
@@ -934,16 +974,20 @@ Proof
       irule backendProofTheory.word_list_exists_imp>>
       gs[]>>
       conj_tac >- (
-        gs[targetSemTheory.good_init_state_def]>>
+(*  dimindex (:α) DIV 8 *
+        (w2n (-1w * t.regs q + t.regs r) DIV w2n bytes_in_word) <
+        dimword (:α) *)
         cheat)>>
 
       rewrite_tac[SET_EQ_SUBSET]>>
-      rw[] >- (
+      rw[]>- (
         gs[SUBSET_DEF]>>strip_tac>>strip_tac>>
-        rewrite_tac[stack_removeProofTheory.addresses_thm]>>
-        rewrite_tac[IN_ABS]>>cheat)
+(* x ∈
+        addresses (t.regs mc.len_reg)
+          (w2n (t.regs mc.len2_reg + -1w * t.regs mc.len_reg) DIV
+           w2n bytes_in_word)*)
+        cheat)
       >- (
-        
         rewrite_tac[stack_removeProofTheory.addresses_thm]>>
         rewrite_tac[SUBSET_DEF]>>strip_tac>>strip_tac>>
         gs[IN_GSPEC_IFF]>>
@@ -961,8 +1005,13 @@ Proof
       rw[]
       >- (
         rewrite_tac[WORD_LS]>>
-        gs[targetSemTheory.good_init_state_def]>>cheat)
-      >- cheat)>>
+        gs[targetSemTheory.good_init_state_def]>>
+(*   w2n (t.regs mc.len_reg) ≤
+        w2n (t.regs mc.len_reg + bytes_in_word * n2w i) *)
+        cheat)
+      >- (gs[]>>
+(* t.regs mc.len_reg + bytes_in_word * n2w i <₊ t.regs mc.len2_reg *)
+          cheat)>>
     irule DISJOINT_INTER>>gs[DISJOINT_SYM])>>
   gs[]>>
 
@@ -1013,8 +1062,7 @@ Proof
             post_alloc_conventions
             (mc.target.config.reg_count −
              (LENGTH mc.target.config.avoid_regs + 5)) prog) wprog’
-  by (drule backendProofTheory.compile_to_word_conventions2>>
-      strip_tac>>
+  by (qpat_x_assum ‘EVERY _ wprog’ assume_tac>>
       gs[EVERY_EL]>>rpt strip_tac>>
       first_x_assum $ qspec_then ‘n’ assume_tac>>
       pairarg_tac>>gs[])>>gs[]>>
@@ -1030,12 +1078,13 @@ Proof
             (LENGTH mc.target.config.avoid_regs + 5)) sst worac ∧
          ALOOKUP wprog raise_stub_location = NONE ∧
          ALOOKUP wprog store_consts_stub_location = NONE’
-    by (qpat_assum ‘word_to_stack$compile _ _ = _’ $ assume_tac o REWRITE_RULE[word_to_stackTheory.compile_def]>>
+    by (
+
+(**********)
+qpat_assum ‘word_to_stack$compile _ _ = _’ $ assume_tac o REWRITE_RULE[word_to_stackTheory.compile_def]>>
         gs[]>>
         pairarg_tac>>gs[]>>
 
-       word_to_stackProofTheory.word_to_stack_compile_lab_pres
-                
         drule word_to_stackProofTheory.MAP_FST_compile_word_to_stack>>
         strip_tac>>
         pairarg_tac>>gs[]>>
