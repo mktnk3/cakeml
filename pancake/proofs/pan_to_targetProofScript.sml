@@ -1143,7 +1143,8 @@ Theorem lab_to_target_no_stubs_good_code_lemma:
   word_to_stack_compile mc.target.config wprog = (bitmaps,c'',fs,p) ∧
   backend_config_ok c ∧ mc_conf_ok mc ∧
   Abbrev (sp =  mc.target.config.reg_count −
-             (LENGTH mc.target.config.avoid_regs + 3)) ∧
+                  (LENGTH mc.target.config.avoid_regs + 3)) ∧
+  DISJOINT (domain ltconf.labels) (set (MAP Section_num noslang)) ∧
   c.lab_conf.asm_conf = mc.target.config ∧
   ALL_DISTINCT (MAP FST pan_code) ⇒
   good_code mc.target.config ltconf.labels noslang
@@ -1161,14 +1162,15 @@ Proof
     by (rveq>>gs[stack_to_labTheory.compile_no_stubs_def])>>
   gs[]>>
 
-  conj_tac
+(*  conj_tac
   >- (gs[backendProofTheory.backend_config_ok_def,
-         lab_to_targetProofTheory.mc_conf_ok_def]
+         lab_to_targetProofTheory.mc_conf_ok_def]>>
 
   
-cheat (* precondition *)>>
-  conj_tac
-  >- (irule SUBSET_TRANS>>
+cheat (* precondition *))>>
+*)
+  conj_tac >-
+           (irule SUBSET_TRANS>>
       irule_at Any stack_to_labProofTheory.stack_to_lab_stack_good_handler_labels_incr>>
       gs[]>>
       first_assum $ irule_at (Pos hd)>>
@@ -1289,6 +1291,14 @@ Proof
   ‘ltconf.ffi_names = SOME mc.ffi_names’
     by (rveq>>gs[])>>gs[]>>
 
+  ‘c6 = c'' ∧ c4 = c ∧ c'''' = ltconf’ by cheat>>
+
+  ‘x = cake_orac (c4 with <|word_to_word_conf updated_by (λc. c with col_oracle := col); word_conf := c6; lab_conf := c'⁴'; symbols := MAP (λ(n,p,l). (lookup_any n n4 «NOTFOUND»,p,l)) c'⁴'.sec_pos_len|>) orac_syntax (SND ∘ SND ∘ SND ∘ SND ∘ config_tuple2) (λps. ps.lab_prog)’
+  gs[backendProofTheory.cake_orac_def,
+     backendTheory.compile_inc_progs_def,
+        quotient_pairTheory.PAIR_MAP_I]>>
+  EVAL_TAC
+
   (* compiler_oracle_ok: for later *)
   qmatch_asmsub_abbrev_tac ‘stack_to_lab_compile _ _ max_heap sp _ _’>>
   qabbrev_tac ‘lorac = λn:num. (c'.lab_conf, p, [4w]:'a word list)’>>
@@ -1330,6 +1340,63 @@ backendProofTheory.compile_lab_domain_labels (THEOREM)
   domain c'.labels = IMAGE FST (get_code_labels prog) ∪ domain c.labels
 
 *)
+    irule lab_to_target_no_stubs_good_code_lemma>>
+    gs[lab_to_targetProofTheory.mc_conf_ok_def, PULL_EXISTS]>>
+    qpat_assum ‘Abbrev (noslang = _)’ (assume_tac o GSYM o REWRITE_RULE[markerTheory.Abbrev_def])>>
+    pop_assum $ irule_at Any>>
+    rpt (first_assum $ irule_at Any)>>
+    MAP_EVERY qexists_tac [‘max_heap’, ‘bytes’]>>
+    gs[backendProofTheory.backend_config_ok_def]>>
+
+    (* ltconf.labels *)
+    qpat_assum ‘Abbrev (lprog = _)’ (assume_tac o GSYM o REWRITE_RULE[markerTheory.Abbrev_def])>>
+    gs[lab_to_targetTheory.compile_def]>>
+    drule backendProofTheory.compile_lab_domain_labels>>
+    strip_tac>>gs[domain_empty]>>
+    qmatch_asmsub_abbrev_tac ‘word_to_word_compile _ _ wprog0 = _’>>
+    qpat_x_assum ‘Abbrev (wprog0 = _)’ (assume_tac o GSYM o REWRITE_RULE [markerTheory.Abbrev_def])>>
+    drule_all pan_to_lab_labels_ok>>
+    strip_tac>>
+    drule backendProofTheory.stack_labels_ok_FST_code_labels_Section_num>>
+    strip_tac>>gs[]>>
+    gs[Abbr ‘noslang’]>>
+    rewrite_tac[stack_to_labTheory.compile_no_stubs_def]>>
+    rewrite_tac[stack_to_labProofTheory.MAP_prog_to_section_Section_num]>>
+    rewrite_tac[compile_no_stubs_sub_FST]>>
+    qpat_assum ‘_ = lprog’ (fn h => rewrite_tac[GSYM h])>>
+    rewrite_tac[stack_to_labTheory.compile_def]>>
+    gs[]>>
+    rewrite_tac[stack_to_labProofTheory.MAP_prog_to_section_Section_num]>>
+    rewrite_tac[stack_namesProofTheory.MAP_FST_compile]>>
+    simp[stack_removeTheory.compile_def]>>
+    rewrite_tac[stack_removeProofTheory.FST_prog_comp, MAP_MAP_o]>>
+    gs[o_DEF]>>simp[ETA_AX]>>
+    simp[stack_allocTheory.compile_def]>>
+    simp[MAP_MAP_o, o_DEF, ETA_AX]>>
+    simp[stack_rawcallProofTheory.MAP_FST_compile]>>
+    
+        
+    
+
+    ‘ltconf.labels = c.lab_conf.labels’
+      by (
+
+      gs[lab_to_targetTheory.compile_lab_def]>>
+      pairarg_tac>>gs[]>>
+      qmatch_asmsub_abbrev_tac ‘option_CASE rml _ _ = SOME _’>>
+      Cases_on ‘rml’>>gs[]>>rename1 ‘_ = SOME xxx’>>
+      PairCases_on ‘xxx’>>gs[]>>
+      drule lab_to_targetProofTheory.remove_labels_domain_labs>>
+      qpat_x_assum ‘_ = ltconf’ $ mp_tac>>
+      simp[lab_to_targetTheory.config_component_equality]>>
+      strip_tac>>
+      strip_tac>>
+        
+      
+      
+      
+
+        
     cheat)>>gs[]>>
         
   conj_tac >- ( (* good_code mc.target.config LN lprog*)
