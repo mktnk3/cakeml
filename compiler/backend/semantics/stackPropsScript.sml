@@ -1008,4 +1008,77 @@ val stack_good_handler_labels_def = Define`
   BIGUNION (set (MAP (λ(n,pp). stack_get_handler_labels n pp) p)) ∪
   IMAGE (λn. n,1) (set (MAP FST p))`
 
+(**************************** no_install *****************************)
+
+(*  ensures there are no install instructions in the code *)
+
+val no_install_def = Define `
+    (no_install (Call ret _ handler) = (case ret of
+        | NONE => (case handler of
+            | NONE => T
+            | SOME (ph,_,_) => no_install ph)
+        | SOME (pr,_,_,_) => (case handler of
+            | NONE => no_install pr
+            | SOME (ph,_,_) => no_install ph ∧ no_install pr))) ∧
+    (no_install (Seq p1 p2) = (no_install p1 ∧ no_install p2)) ∧
+    (no_install (If _ _ _ p1 p2) = (no_install p1 ∧ no_install p2)) ∧
+    (no_install (While _ _ _ p) = (no_install p)) ∧
+    (no_install (Install _ _ _ _ _) = F) ∧
+    (no_install _ = T)
+`
+
+val no_install_ind = theorem "no_install_ind";
+
+val no_install_code_def = Define `
+    no_install_code (code : ('a stackLang$prog) num_map) ⇔
+        ∀ k p . lookup k code = SOME p ⇒ no_install p
+`
+
+Theorem no_install_find_code:
+     ∀ code dest args lsize args1 expr ps.
+       no_install_code code ∧
+       stackSem$find_code f regs code = SOME exp
+    ⇒ no_install exp
+Proof
+  rw[no_install_code_def] >> Cases_on `f` >> fs[find_code_def] >>
+  first_x_assum $ irule>>
+  TRY (EVERY_CASE_TAC >> fs []) >>
+  gs[]>>metis_tac[]
+QED
+
+Theorem no_install_evaluate_const_code:
+  ∀ prog s result s1 .
+    stackSem$evaluate (prog, (s:(α,γ,'ffi) stackSem$state)) = (result, s1) ∧
+    no_install prog ∧ no_install_code (s.code:('a stackLang$prog) num_map)
+    ⇒ s.code = s1.code
+Proof
+  recInduct evaluate_ind >> rw[] >> qpat_x_assum `evaluate _ = _` mp_tac >>
+  fs[evaluate_def]>>
+  TRY (CASE_TAC>>gs[no_install_def]>>rw[]>>fs[]>>NO_TAC)>>
+  TRY (CASE_TAC>>CASE_TAC>>gs[no_install_def]>>rw[]>>fs[]>>NO_TAC)
+  >- (EVERY_CASE_TAC >> fs[] >> rw[] >> imp_res_tac alloc_const >> fs[set_var_def])
+  >- (EVERY_CASE_TAC >> fs[] >> rw[] >> drule store_const_sem_const>>
+      strip_tac>>gs[])
+  >- (rw[] >> EVERY_CASE_TAC >> imp_res_tac inst_const >>
+      fs[] >> rveq >> fs[])
+  >- (pairarg_tac>>gs[]>>Cases_on ‘res’>>gs[no_install_def])
+  >- (rpt CASE_TAC>>gs[no_install_def]>>rw[]>>fs[])
+  >- (rpt CASE_TAC>>gs[no_install_def]>>rw[]>>fs[])
+  >- (rpt CASE_TAC>>gs[no_install_def, STOP_def]>>
+      pairarg_tac>>gs[]>>Cases_on ‘res’>>gs[]>>
+      IF_CASES_TAC>>gs[]>>strip_tac>>rw[])
+  >- (rpt CASE_TAC>>gs[no_install_def]>>strip_tac>>rw[]>>
+      drule_all no_install_find_code>>
+      strip_tac>>rw[])
+  >- (rpt CASE_TAC>>gs[no_install_def,no_install_code_def]>>
+      strip_tac>>rw[]>>
+      rename1 ‘lookup _ _ = SOME xxx’>>
+      Cases_on ‘xxx’>>gs[dest_Seq_def]>>
+      metis_tac[no_install_def])
+  >- (Cases_on ‘ret’>>Cases_on ‘handler’>>Cases_on ‘dest’>>
+      gs[no_install_def,no_install_code_def,find_code_def]>>
+      rpt (CASE_TAC>>gvs[])>>rw[]>>rw[]>>metis_tac[])>>
+  rpt CASE_TAC>>gs[no_install_def]>>rw[]>>fs[]
+QED
+
 val _ = export_theory();
