@@ -835,4 +835,33 @@ Proof
   \\ metis_tac[sec_label_ok_extract_labels]
 QED
 
+(**************************** no_install *****************************)
+
+(*  ensures there are no install instructions in the code *)
+
+val no_install_line_def = Define `
+     (no_install_line (LabAsm awl _ _ _) = (case awl of
+        | Install => F
+        | _ => T)) ∧
+     (no_install_line _ = T)`
+
+val no_install_def = Define `
+  (no_install (Section _ lines) =
+    (EVERY (λl. no_install_line l) lines))`
+
+val no_install_line_ind = theorem "no_install_line_ind";
+
+val no_install_code_def = Define `
+    no_install_code (code : 'a labLang$prog) ⇔
+        EVERY (λs. no_install s) code
+`
+(*
+Theorem no_install_evaluate_const_code:
+  ∀ s result s1 .
+    labSem$evaluate (s:(α,γ,'ffi) labSem$state) = (result, s1) ∧
+    no_install_code (s.code:'a labLang$prog)
+    ⇒ s.code = s1.code
+Proof
+QED
+*)
 val _ = export_theory();
