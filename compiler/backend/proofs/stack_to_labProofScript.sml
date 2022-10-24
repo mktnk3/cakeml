@@ -4375,4 +4375,254 @@ Proof
   simp[]
 QED
 
+(***********)
+
+Theorem stack_rawcall_comp_no_install_pres':
+  comp c prog = prog' ∧
+  no_install prog ⇒
+  no_install prog'
+Proof
+  MAP_EVERY qid_spec_tac [‘prog'’, ‘prog’, ‘c’]>>
+  recInduct stack_rawcallTheory.comp_ind>>rw[]>>
+  rename1 ‘comp i p’>>Cases_on ‘p’>>gs[]>>
+  once_rewrite_tac[stack_rawcallTheory.comp_def]>>
+  gs[stack_rawcallTheory.comp_seq_def]>>
+  EVERY_CASE_TAC>>
+  gs[stackPropsTheory.no_install_def]
+QED
+
+Theorem stack_rawcall_comp_no_install_pres[simp]:
+  no_install prog ⇒
+  no_install (comp c prog)
+Proof
+  strip_tac>>
+  irule stack_rawcall_comp_no_install_pres'>>metis_tac[]
+QED
+
+Theorem stack_rawcall_comp_top_no_install_pres[simp]:
+  no_install r ⇒
+  no_install (comp_top c r)
+Proof
+  MAP_EVERY qid_spec_tac [‘c’, ‘r’]>>
+  Induct_on ‘r’>>rw[stack_rawcallTheory.comp_top_def]>>
+  gs[stackPropsTheory.no_install_def]
+QED
+
+Theorem stack_rawcall_compile_no_install_pres:
+  ALL_DISTINCT (MAP FST progs) ∧
+  no_install_code (fromAList progs) ∧
+  compile progs = progs' ⇒
+  no_install_code (fromAList progs')
+Proof
+  strip_tac>>
+  ‘MAP FST progs' = MAP FST progs’
+    by (rveq>>
+        irule stack_rawcallProofTheory.MAP_FST_compile)>>
+  gs[stack_rawcallTheory.compile_def]>>
+  gs[stackPropsTheory.no_install_code_def]>>
+  rpt strip_tac>>gs[lookup_fromAList]>>
+  drule ALOOKUP_MEM>>strip_tac>>
+  rveq>>gs[MEM_MAP]>>
+  rename1 ‘MEM y progs’>>Cases_on ‘y’>>gs[]>>
+  last_x_assum $ qspecl_then [‘k’, ‘r’] assume_tac>>
+  gs[]>>
+  irule stack_rawcall_comp_top_no_install_pres>>
+  pop_assum $ irule>>
+  gs[ALOOKUP_ALL_DISTINCT_MEM]
+QED
+
+Theorem no_install_line_compile_jump[simp]:
+  no_install_line (compile_jump s)
+Proof
+  Cases_on ‘s’>>
+  gs[no_install_line_def,stack_to_labTheory.compile_jump_def]
+QED
+
+Theorem flatten_no_install_pres':
+  flatten t p n nl = res ∧
+  no_install p ⇒
+  EVERY no_install_line (append (FST res))
+Proof
+  MAP_EVERY qid_spec_tac [‘res’, ‘r’, ‘nl’, ‘n’, ‘p’, ‘t’]>>
+  recInduct flatten_ind>>Cases_on ‘p’>>rw[]>>gs[]>>
+  once_rewrite_tac[flatten_def]>>gs[]>>
+  gs[no_install_line_def,stackPropsTheory.no_install_def]>>
+  EVERY_CASE_TAC>>gs[no_install_line_def]>>
+  TRY (rpt (pairarg_tac>>gs[no_install_line_def,append_thm]))>>
+  rpt (IF_CASES_TAC>>gs[no_install_line_def,append_thm])
+QED
+
+Theorem flatten_no_install_pres[simp]:
+  flatten t p n nl = (lines, _, _) ∧
+  no_install p ⇒
+  EVERY no_install_line (append lines)
+Proof
+  strip_tac>>drule flatten_no_install_pres'>>gs[]
+QED
+
+Theorem stack_names_compile_no_install_pres[simp]:
+  ALL_DISTINCT (MAP FST prog) ∧
+  stack_names$compile n prog = prog' ∧
+  no_install_code (fromAList prog) ⇒
+  no_install_code (fromAList prog')
+Proof
+  strip_tac>>
+  ‘MAP FST prog' = MAP FST prog’
+  by (rveq>>gs[stack_namesProofTheory.MAP_FST_compile])>>
+  gs[stack_namesTheory.compile_def]>>
+  gs[stackPropsTheory.no_install_code_def,lookup_fromAList]>>
+  rpt strip_tac>>
+  drule ALOOKUP_MEM>>strip_tac>>
+  rveq>>gs[MEM_MAP]>>
+  rename1 ‘MEM y prog’>>Cases_on ‘y’>>gs[]>>
+  last_x_assum $ qspecl_then [‘q’, ‘r’] assume_tac>>gs[]>>
+  gs[ALOOKUP_ALL_DISTINCT_MEM]>>
+  ‘prog_comp n (q, r) = (k, p) ∧ no_install r ⇒ no_install p’ by cheat>>
+  gs[]
+QED
+
+Theorem stack_remove_compile_no_install_pres[simp]:
+  ALL_DISTINCT (MAP FST prog) ∧
+  stack_remove$compile j off g mh sp l prog = prog' ∧
+  no_install_code (fromAList prog) ⇒
+  no_install_code (fromAList prog')
+Proof
+  strip_tac>>
+  gs[stack_removeTheory.compile_def]>>
+  gs[stackPropsTheory.no_install_code_def,lookup_fromAList]>>
+  rpt strip_tac>>rveq>>
+  drule ALOOKUP_MEM>>strip_tac>>gs[]
+  >- (gs[stack_removeTheory.init_stubs_def,
+         stackPropsTheory.no_install_def]>>EVAL_TAC)>>
+  gs[MEM_MAP]>>
+  rename1 ‘MEM y prog’>>Cases_on ‘y’>>gs[]>>
+  last_x_assum $ qspecl_then [‘q’, ‘r’] assume_tac>>gs[]>>
+  gs[ALOOKUP_ALL_DISTINCT_MEM]>>
+  ‘prog_comp j off sp (q, r) = (k, p) ∧ no_install r ⇒ no_install p’ by cheat>>
+  gs[]
+QED
+
+Theorem stack_alloc_compile_no_install_pres[simp]:
+  ALL_DISTINCT (MAP FST prog) ∧
+  stack_alloc$compile c prog = prog' ∧
+  no_install_code (fromAList prog) ⇒
+  no_install_code (fromAList prog')
+Proof
+  strip_tac>>
+  gs[stack_allocTheory.compile_def]>>
+  gs[stackPropsTheory.no_install_code_def,lookup_fromAList]>>
+  rpt strip_tac>>rveq>>
+  gs[ALOOKUP_APPEND]>>FULL_CASE_TAC>>gs[]
+  >- (
+  gs[stack_allocProofTheory.prog_comp_lambda]>>
+  gs[ALOOKUP_MAP_2]>>
+  last_x_assum $ qspecl_then [‘k’, ‘p'’] assume_tac>>gs[]>>
+  ‘∀k n p. no_install p' ⇒ no_install (FST (comp k n p'))’ by cheat>>
+  pop_assum $ irule>>gs[])>>
+  gs[stack_allocTheory.stubs_def]>>rveq>>
+  gs[stackPropsTheory.no_install_def,stack_allocTheory.word_gc_code_def]>>
+  rpt (CASE_TAC>>
+       gs[stackPropsTheory.no_install_def,stackLangTheory.list_Seq_def,
+          stack_allocTheory.word_gc_partial_or_full_def])>>
+  gs[stackPropsTheory.no_install_def,stackLangTheory.list_Seq_def,
+     stack_allocTheory.word_gc_move_code_def,
+     stack_allocTheory.word_gc_move_list_code_def,
+     stack_allocTheory.word_gen_gc_move_list_code_def,
+     stack_allocTheory.word_gen_gc_move_code_def,
+     stack_allocTheory.word_gen_gc_move_loop_code_def,
+     stack_allocTheory.word_gc_move_roots_bitmaps_code_def,
+     stack_allocTheory.word_gen_gc_move_bitmaps_code_def,
+     stack_allocTheory.word_gen_gc_move_data_code_def,
+     stack_allocTheory.word_gen_gc_move_refs_code_def,
+     stack_allocTheory.word_gen_gc_move_roots_bitmaps_code_def,
+     stack_allocTheory.word_gc_move_loop_code_def,
+     stack_allocTheory.clear_top_inst_def,
+     stack_allocTheory.memcpy_code_def,
+     stack_allocTheory.clear_top_inst_def,
+     stack_allocTheory.word_gc_partial_or_full_def,
+     stack_allocTheory.word_gc_move_bitmap_code_def,
+     stack_allocTheory.word_gen_gc_move_bitmap_code_def,
+     stack_allocTheory.word_gc_move_bitmaps_code_def,
+     stack_allocTheory.word_gen_gc_partial_move_code_def,
+     stack_allocTheory.word_gen_gc_partial_move_roots_bitmaps_code_def,
+     stack_allocTheory.word_gen_gc_partial_move_bitmaps_code_def,
+     stack_allocTheory.word_gen_gc_partial_move_bitmap_code_def,
+     stack_allocTheory.word_gen_gc_partial_move_list_code_def,
+     stack_allocTheory.word_gen_gc_partial_move_ref_list_code_def,
+     stack_allocTheory.word_gen_gc_partial_move_data_code_def,
+     stack_allocTheory.SetNewTrigger_def]
+QED
+
+Theorem map_to_section_no_install_pres[simp]:
+  ALL_DISTINCT (MAP FST prog) ∧
+  no_install_code (fromAList prog) ⇒
+  no_install_code
+  (MAP prog_to_section prog)
+Proof
+  strip_tac>>gs[stackPropsTheory.no_install_code_def]>>
+  gs[no_install_code_def]>>
+  gs[EVERY_MAP, EVERY_MEM, lookup_fromAList]>>
+  rpt strip_tac>>
+  rename1 ‘MEM x prog’>>Cases_on ‘x’>>gs[]>>
+  last_x_assum $ qspecl_then [‘q’, ‘r’] assume_tac>>gs[]>>
+  gs[ALOOKUP_ALL_DISTINCT_MEM]>>
+  gs[stack_to_labTheory.prog_to_section_def]>>
+  pairarg_tac>>
+  gs[no_install_def, ETA_THM,no_install_line_def]>>
+  drule_then irule flatten_no_install_pres>>gs[]
+QED
+
+Theorem stack_to_lab_compile_no_install_pres:
+  ALL_DISTINCT (MAP FST progs) ∧
+  stack_to_lab$compile sc dc mh sp off progs = p ∧
+  EVERY (λn. n ≠ 0 ∧ n ≠ 1 ∧ n ≠ 2 ∧ n ≠ gc_stub_location)
+        (MAP FST progs) ∧
+  EVERY (λ(n,p).
+           (let
+              labs = extract_labels p
+            in
+              EVERY (λ(l1,l2). l1 = n ∧ l2 ≠ 0 ∧ l2 ≠ 1) labs ∧
+              ALL_DISTINCT labs)) progs ∧
+  no_install_code (fromAList progs) ⇒
+  no_install_code p
+Proof
+  strip_tac>>
+  ‘labels_ok p’
+    by (rveq>>drule_all stack_to_lab_compile_lab_pres>>metis_tac[])>>
+  gs[labels_ok_def]>>
+  gs[stack_to_labTheory.compile_def]>>
+  rveq>>gs[]>>
+  qmatch_goalsub_abbrev_tac ‘stack_names$compile _ prog1’>>
+  qmatch_asmsub_abbrev_tac ‘stack_remove$compile _ _ _ _ _ _ prog2’>>
+  qmatch_goalsub_abbrev_tac ‘MAP prog_to_section prog0’>>
+  irule map_to_section_no_install_pres>>
+  ‘ALL_DISTINCT (MAP FST (compile progs))’
+    by gs[stack_rawcallProofTheory.MAP_FST_compile]>>
+  ‘MAP (λs. case s of Section n v1 => n) (MAP prog_to_section prog0)
+   = MAP FST prog0’
+    by (irule EQ_TRANS>>
+        irule_at Any MAP_prog_to_section_Section_num>>
+        gs[MAP_MAP_o,o_DEF]>>gs[MAP_EQ_f]>>rpt strip_tac>>
+        rename1 ‘MEM x prog0’>>Cases_on ‘x’>>gs[]>>
+        gs[labLangTheory.Section_num_def,
+           stack_to_labTheory.prog_to_section_def]>>
+        pairarg_tac>>gs[])>>
+  gs[]>>
+  irule stack_names_compile_no_install_pres>>
+  gs[Abbr ‘prog0’]>>irule_at Any EQ_REFL>>
+  gs[]>>
+  irule stack_remove_compile_no_install_pres>>
+  gs[Abbr ‘prog1’]>>irule_at Any EQ_REFL>>
+  irule_at Any stack_alloc_compile_no_install_pres>>
+  gs[Abbr ‘prog2’]>>irule_at Any EQ_REFL>>
+  gs[]>>
+  irule_at Any stack_rawcall_compile_no_install_pres>>
+  irule_at Any EQ_REFL>>
+  gs[stack_allocTheory.compile_def,ALL_DISTINCT_APPEND]>>
+  gs[MAP_MAP_o, o_DEF, ETA_THM]>>
+  gs[stack_allocTheory.stubs_def, EVERY_MEM]>>
+  last_x_assum $ qspec_then ‘gc_stub_location’ assume_tac>>
+  gs[stack_rawcallProofTheory.MAP_FST_compile]
+QED
+
 val _ = export_theory();
