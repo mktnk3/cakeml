@@ -10441,4 +10441,241 @@ Proof
   simp[]
 QED
 
+(** no_install for word_to_stack **)
+
+Theorem wMoveSingle_no_install[simp]:
+  no_install (wMoveSingle xs kf)
+Proof
+  Cases_on ‘xs’>>PairCases_on ‘kf’>>gs[wMoveSingle_def]>>
+  EVERY_CASE_TAC>>gs[]>>gs[stackPropsTheory.no_install_def]
+QED
+
+Theorem wMoveAux_no_install[simp]:
+  no_install (wMoveAux xs kf)
+Proof
+  MAP_EVERY qid_spec_tac [‘kf’, ‘xs’]>>
+  recInduct wMoveAux_ind>>rw[wMoveAux_def]>>
+  gs[stackPropsTheory.no_install_def]
+QED
+
+Theorem wMove_no_install[simp]:
+  no_install (wMove xs kf)
+Proof
+  PairCases_on ‘kf’>>gs[word_to_stackTheory.wMove_def]
+QED
+
+Theorem wRegWrite1_no_install[simp]:
+  (∀n. no_install (g n)) ⇒
+  no_install (wRegWrite1 g r kf)
+Proof
+  strip_tac>>PairCases_on ‘kf’>>gs[wRegWrite1_def]>>
+  IF_CASES_TAC>>gs[stackPropsTheory.no_install_def]
+QED
+
+Theorem wRegWrite2_no_install[simp]:
+  (∀n. no_install (g n)) ⇒
+  no_install (wRegWrite2 g r kf)
+Proof
+  strip_tac>>PairCases_on ‘kf’>>gs[wRegWrite2_def]>>
+  IF_CASES_TAC>>gs[stackPropsTheory.no_install_def]
+QED
+
+Theorem wStackLoad_no_install[simp]:
+  no_install prog ⇒
+  no_install (wStackLoad l prog)
+Proof
+  MAP_EVERY qid_spec_tac [‘prog’, ‘l’]>>
+  recInduct wStackLoad_ind>>rw[wStackLoad_def, stackPropsTheory.no_install_def]
+QED
+
+Theorem wStackStore_no_install[simp]:
+  no_install prog ⇒
+  no_install (wStackStore l prog)
+Proof
+  MAP_EVERY qid_spec_tac [‘prog’, ‘l’]>>
+  recInduct wStackStore_ind>>rw[wStackStore_def, stackPropsTheory.no_install_def]
+QED
+
+Theorem SeqStackFree_no_install[simp]:
+  no_install prog ⇒
+  no_install (SeqStackFree n prog)
+Proof
+  rw[SeqStackFree_def, stackPropsTheory.no_install_def]
+QED
+
+Theorem wLive_no_install[simp]:
+  wLive lv bm kf = (p, bm') ⇒
+  no_install p
+Proof
+  PairCases_on ‘kf’>>rw[wLive_def]>>
+  gs[wLive_def, stackPropsTheory.no_install_def]>>
+  pairarg_tac>>gs[]>>rveq>>gs[stackPropsTheory.no_install_def]
+QED
+
+Theorem wInst_no_install[simp]:
+  no_install (wInst i kf)
+Proof
+  MAP_EVERY qid_spec_tac [‘kf’, ‘i’]>>
+  recInduct wInst_ind>>rw[stackPropsTheory.no_install_def, wInst_def]>>
+  rpt (pairarg_tac>>gs[])>>
+  TRY (irule wStackLoad_no_install>>
+       TRY (irule wRegWrite1_no_install)>>gs[stackPropsTheory.no_install_def])
+QED
+
+Theorem stack_move_no_install[simp]:
+  no_install p ⇒
+  no_install (stack_move n dest off i p)
+Proof
+  MAP_EVERY qid_spec_tac [‘p’, ‘i’, ‘off’, ‘dest’, ‘n’]>>
+  Induct_on ‘n’>>rw[stack_move_def, stackPropsTheory.no_install_def]>>gs[]
+QED
+
+Theorem StackArgs_no_install[simp]:
+  no_install (StackArgs dest ac kf)
+Proof
+  PairCases_on ‘kf’>>gs[StackArgs_def]>>
+  irule stack_move_no_install>>gs[stackPropsTheory.no_install_def]
+QED
+
+Theorem word_to_stack_comp_no_install_pres:
+  comp p bitmaps k = (q1,bitmaps') ∧
+  no_install p ⇒
+  no_install q1
+Proof
+  MAP_EVERY qid_spec_tac [‘q1’, ‘bitmaps'’, ‘k’, ‘bitmaps’, ‘p’]>>
+  recInduct word_to_stackTheory.comp_ind>>
+  rw[word_to_stackTheory.comp_def]>>
+  TRY (rpt (pairarg_tac>>gs[]))>>rveq>>
+  gs[stackPropsTheory.no_install_def, wordPropsTheory.no_install_def]>>
+  TRY (drule_then irule wLive_no_install)
+  >- (FULL_CASE_TAC>>gs[]>>rveq>>gs[stackPropsTheory.no_install_def]>>
+      pairarg_tac>>gs[]>>rveq>>
+      irule wStackLoad_no_install>>gs[stackPropsTheory.no_install_def])>>
+  Cases_on ‘ret’>>Cases_on ‘handler’>>gs[]>>
+  rveq>>gs[stackPropsTheory.no_install_def]
+  >- (Cases_on ‘dest’>>gs[call_dest_def]
+      >- (Cases_on ‘args’>>gs[]>>TRY (pairarg_tac>>gs[])>>
+          rveq>>gs[stackPropsTheory.no_install_def])>>rveq>>gs[stackPropsTheory.no_install_def])
+  >- (Cases_on ‘dest’>>gs[call_dest_def]
+      >- (Cases_on ‘args’>>gs[]>>TRY (pairarg_tac>>gs[])>>
+          rveq>>gs[stackPropsTheory.no_install_def])>>
+      rveq>>gs[stackPropsTheory.no_install_def])
+  >- (Cases_on ‘dest’>>gs[call_dest_def]>>
+      PairCases_on ‘x’>>gs[]>>rpt (pairarg_tac>>gs[])>>
+      rveq>>gs[stackPropsTheory.no_install_def]>>
+      drule_then (irule_at Any) wLive_no_install>>
+      Cases_on ‘args’>>gs[]>>
+      rveq>>gs[stackPropsTheory.no_install_def])>>
+  Cases_on ‘dest’>>gs[call_dest_def]>>
+  PairCases_on ‘x’>>gs[]>>rpt (pairarg_tac>>gs[])>>
+  PairCases_on ‘x'’>>gs[]>>rpt (pairarg_tac>>gs[])>>
+  rveq>>gs[stackPropsTheory.no_install_def]>>
+  PairCases_on ‘kf’>>
+  gs[stackPropsTheory.no_install_def,PushHandler_def,PopHandler_def,StackHandlerArgs_def]>>drule_then (irule_at Any) wLive_no_install>>
+  Cases_on ‘args’>>gs[]>>
+  rveq>>gs[stackPropsTheory.no_install_def]
+QED
+
+Theorem word_to_stack_compile_prog_no_install_pres:
+  compile_prog p n k bitmaps = (p',f,bitmaps'') ∧
+  no_install p ⇒
+  no_install p'
+Proof
+  gs[word_to_stackTheory.compile_prog_def]>>
+  strip_tac>>pairarg_tac>>gs[]>>rveq>>
+  gs[stackPropsTheory.no_install_def]>>
+  drule word_to_stack_comp_no_install_pres>>gs[]
+QED
+
+Theorem no_install_code_cons:
+  ALL_DISTINCT (MAP FST ((i, p)::progs)) ⇒
+  (no_install_code (fromAList ((i, p)::progs)) ⇔
+  no_install p ∧ no_install_code (fromAList progs))
+Proof
+  strip_tac>>gs[EQ_IMP_THM]>>conj_tac>>
+  strip_tac>>gs[stackPropsTheory.no_install_code_def]
+  >- (conj_tac
+      >- (first_x_assum $ qspec_then ‘i’ assume_tac>>gs[lookup_fromAList])>>
+      rpt strip_tac>>
+      first_x_assum $ qspec_then ‘k’ assume_tac>>
+      gs[lookup_fromAList]>>
+      Cases_on ‘i=k’>>gs[GSYM ALOOKUP_NONE])>>
+  rpt strip_tac>>gs[lookup_fromAList]>>
+  Cases_on ‘i=k’>>gs[GSYM ALOOKUP_NONE]>>
+  first_x_assum irule>>gs[]>>metis_tac[]
+QED
+
+(* move to wordProps *)
+Theorem word_no_install_code_cons:
+  ALL_DISTINCT (MAP FST ((i, n, p)::progs)) ⇒
+  (wordProps$no_install_code (fromAList ((i, n, p)::progs)) ⇔
+  no_install p ∧ no_install_code (fromAList progs))
+Proof
+  strip_tac>>gs[EQ_IMP_THM]>>conj_tac>>
+  strip_tac>>gs[wordPropsTheory.no_install_code_def]
+  >- (conj_tac
+      >- (first_x_assum $ qspec_then ‘i’ assume_tac>>gs[lookup_fromAList])>>
+      rpt strip_tac>>
+      first_x_assum $ qspec_then ‘k’ assume_tac>>
+      gs[lookup_fromAList]>>
+      Cases_on ‘i=k’>>gs[GSYM ALOOKUP_NONE])>>
+  rpt strip_tac>>gs[lookup_fromAList]>>
+  Cases_on ‘i=k’>>gs[GSYM ALOOKUP_NONE]>>
+  first_x_assum irule>>gs[]>>metis_tac[]
+QED
+(**)
+
+Theorem compile_word_to_stack_no_install_pres:
+  ALL_DISTINCT (MAP FST progs) ∧
+  compile_word_to_stack sp progs x = (progs',fs,bitmaps) ∧
+  no_install_code (fromAList progs) ⇒
+  no_install_code (fromAList progs')
+Proof
+  MAP_EVERY qid_spec_tac [‘progs'’, ‘fs’, ‘bitmaps’, ‘x’, ‘progs’, ‘sp’]>>
+  recInduct word_to_stackTheory.compile_word_to_stack_ind>>rw[]
+  >- (gs[word_to_stackTheory.compile_word_to_stack_def]>>rveq>>
+      gs[stackPropsTheory.no_install_code_def,
+         wordPropsTheory.no_install_code_def,
+         lookup_fromAList])>>
+  ‘ALL_DISTINCT (MAP FST ((i,n,p)::progs))’ by gs[]>>
+  drule word_no_install_code_cons>>
+  strip_tac>>gs[]>>
+  gs[word_to_stackTheory.compile_word_to_stack_def]>>
+  pairarg_tac>>gs[]>>
+  pairarg_tac>>gs[]>>rveq>>
+  drule word_to_stack_compile_prog_no_install_pres>>
+  strip_tac>>gs[]>>
+  irule (iffRL no_install_code_cons)>>
+  gs[]>>
+  drule MAP_FST_compile_word_to_stack>>strip_tac>>gs[]
+QED
+
+Theorem word_to_stack_compile_no_install_pres:
+  ALL_DISTINCT (MAP FST progs) ∧
+  word_to_stack$compile ac progs = (_, _, _, p) ∧
+  ALL_DISTINCT (MAP FST p) ∧
+  EVERY (λ(n,m,p).
+           (let
+              labs = extract_labels p
+            in
+              EVERY (λ(l1,l2). l1 = n ∧ l2 ≠ 0 ∧ l2 ≠ 1) labs ∧
+              ALL_DISTINCT labs)) progs ∧
+  no_install_code (fromAList progs) ⇒
+  no_install_code (fromAList p)
+Proof
+  strip_tac>>
+  drule (GEN_ALL word_to_stack_compile_lab_pres)>>
+  disch_then $ qspec_then ‘ac’ assume_tac>>gs[]>>
+  gs[word_to_stackTheory.compile_def]>>
+  pairarg_tac>>gs[]>>
+  drule MAP_FST_compile_word_to_stack>>strip_tac>>gs[]>>
+  drule_all compile_word_to_stack_no_install_pres>>strip_tac>>
+  rveq>>gs[]>>
+  irule (iffRL no_install_code_cons)>>strip_tac>>gs[]>>
+  conj_tac
+  >- gs[stackPropsTheory.no_install_def, word_to_stackTheory.raise_stub_def]>>
+  irule (iffRL no_install_code_cons)>>strip_tac>>gs[]>>
+  gs[stackPropsTheory.no_install_def, word_to_stackTheory.store_consts_stub_def]
+QED
+
 val _ = export_theory();
