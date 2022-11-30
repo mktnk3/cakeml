@@ -222,4 +222,31 @@ Proof
   first_x_assum $ qspec_then ‘k’ assume_tac>>gs[]
 QED
 
+Theorem good_dimindex_0w_8w:
+   good_dimindex (:α) ⇒ (0w:α word) ≤ 8w ∧ -8w ≤ (0w:α word)
+Proof
+  strip_tac>>
+  fs[WORD_LE,labPropsTheory.good_dimindex_def,word_2comp_n2w,
+     dimword_def,word_msb_n2w]
+QED
+
+Theorem FLOOKUP_MAP_KEYS_LINV:
+  f PERMUTES 𝕌(:α) ⇒
+  FLOOKUP (MAP_KEYS (LINV f 𝕌(:α)) m) (i:α) = FLOOKUP m (f i)
+Proof
+  strip_tac>>
+  drule BIJ_LINV_INV>>strip_tac>>
+  drule BIJ_LINV_BIJ>>strip_tac>>
+  gs[BIJ_DEF]>>
+  mp_tac (GEN_ALL $ INST_TYPE [beta|->alpha,gamma|->beta] FLOOKUP_MAP_KEYS_MAPPED)>>
+  disch_then $ qspecl_then [‘m’, ‘f i’, ‘LINV f 𝕌(:α)’] mp_tac>>
+  gs[]>>
+  last_x_assum assume_tac>>
+  drule LINV_DEF>>
+  disch_then $ qspec_then ‘i’ mp_tac>>
+  impl_tac >- gs[]>>
+  strip_tac>>pop_assum (fn h => rewrite_tac[h])
+QED
+
+
 val _ = export_theory();
