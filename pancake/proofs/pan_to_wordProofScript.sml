@@ -793,7 +793,7 @@ QED
 (* inst_ok_less *)
 
 Theorem pan_to_word_every_inst_ok_less:
-  pan_to_word_compile_prog pan_code = wprog0 ∧
+  compile_prog pan_code = wprog0 ∧
   byte_offset_ok c 0w ⇒
   EVERY (λ(n,m,p). every_inst (inst_ok_less c) p) wprog0
 Proof
