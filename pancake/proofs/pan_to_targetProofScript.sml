@@ -273,6 +273,7 @@ Theorem pan_to_target_compile_semantics:
   FDOM s.eshapes = FDOM ((get_eids pan_code):mlstring |-> 'a word) ∧
   backend_config_ok c ∧ lab_to_targetProof$mc_conf_ok mc ∧
   mc_init_ok c mc ∧ mc.target.get_reg ms mc.len_reg = s.base_addr ∧
+  
   s.ffi = ffi ∧ mc.target.config.big_endian = s.be ∧
   installed bytes cbspace bitmaps data_sp c'.lab_conf.ffi_names (heap_regs c.stack_conf.reg_names) mc ms ∧
   semantics s start ≠ Fail ⇒
@@ -726,18 +727,156 @@ Proof
   gs[stack_removeProofTheory.make_init_any_def]>>
 
   (* init_code shows here *)
-  
-  qabbrev_tac ‘mko = make_init_opt (is_gen_gc c.data_conf.gc_kind) max_heap bitmaps data_sp (λn. (ltconf,[],[])) c.stack_conf.jump mc.target.config.addr_offset sp (fromAList (compile c.data_conf (compile p))) sss’>>
-  gs[]>>
-  fs[stack_removeProofTheory.make_init_opt_def]>>gs[]>>
-  gs[Abbr ‘mko’]>>
-  (***)
 
   qpat_x_assum ‘_ = labst.len2_reg’ $ assume_tac o GSYM>>
   qpat_x_assum ‘_ = labst.ptr2_reg’ $ assume_tac o GSYM>>
   qpat_x_assum ‘_ = labst.len_reg’ $ assume_tac o GSYM>>
   qpat_x_assum ‘_ = labst.ptr_reg’ $ assume_tac o GSYM>>
   gs[]>>
+
+  ‘mc.len2_reg ≠ mc.len_reg ∧ mc.ptr2_reg ≠ mc.len_reg ∧
+   mc.len2_reg ≠ mc.ptr2_reg’
+    by (
+    gs[BIJ_DEF, INJ_DEF]>>
+    conj_tac >- (
+      CCONTR_TAC>>
+      last_x_assum $ qspecl_then [‘4’, ‘2’] assume_tac>>
+      gs[])>>
+    conj_tac >- (
+      CCONTR_TAC>>
+      last_x_assum $ qspecl_then [‘3’, ‘2’] assume_tac>>
+      gs[])>>
+    CCONTR_TAC>>
+    last_x_assum $ qspecl_then [‘3’, ‘4’] assume_tac>>
+    gs[])>>
+
+  ‘init_code_pre sp bitmaps data_sp sss’
+    by (
+    simp[stack_removeProofTheory.init_code_pre_def]>>
+    gs[stack_to_labProofTheory.memory_assumption_def]>>
+    gs[Abbr ‘sss’]>>
+    gs[FLOOKUP_MAP_KEYS_LINV]>>
+    MAP_EVERY qexists_tac [‘ptr2’, ‘ptr3’, ‘ptr4’, ‘bitmap_ptr'’]>>
+    gs[]>>
+  gs[flookup_fupdate_list]>>
+    gs[REVERSE_DEF, ALOOKUP_APPEND]>>
+    gs[]>>
+    conj_tac >- simp[domain_fromAList, stack_removeTheory.compile_def,
+                     stack_removeTheory.init_stubs_def]>>
+    conj_tac >- 
+     (qpat_x_assum ‘MEM (_ _ sp) _’ $ irule_at Any>>
+      simp[Once EQ_SYM_EQ]>>irule LINV_DEF>>
+      gs[BIJ_DEF]>>metis_tac[])>>
+    conj_tac >- 
+     (qpat_x_assum ‘MEM (_ _ (_+1)) _’ $ irule_at Any>>
+      simp[Once EQ_SYM_EQ]>>irule LINV_DEF>>
+      gs[BIJ_DEF]>>metis_tac[])>>
+     (qpat_x_assum ‘MEM (_ _ (_+2)) _’ $ irule_at Any>>
+      simp[Once EQ_SYM_EQ]>>irule LINV_DEF>>
+      gs[BIJ_DEF]>>metis_tac[]))>>
+    ‘code_rel c.stack_conf.jump mc.target.config.addr_offset sp (fromAList (stack_alloc$compile c.data_conf (compile p))) sss.code’
+    by (
+    simp[stack_removeProofTheory.code_rel_def]>>
+      gs[Abbr ‘sss’]>>
+    reverse conj_tac >- (
+     gs[domain_fromAList]>>
+    simp[stack_removeTheory.compile_def]>>
+    simp[stack_removeProofTheory.prog_comp_eta]>>
+    simp[stack_removeTheory.init_stubs_def]>>
+     rewrite_tac[Once UNION_COMM]>>
+     simp[MAP_MAP_o, combinTheory.o_DEF]>>simp[LAMBDA_PROD]>>
+     ‘set (MAP (λ(p1,p2). p1) (compile c.data_conf (compile p))) =
+      set (MAP FST (compile c.data_conf (compile p)))’
+     by (
+       gs[LIST_TO_SET_MAP]>>
+       irule IMAGE_CONG>>rw[]>>pairarg_tac>>gs[])>>
+     gs[])>>
+    ntac 3 strip_tac>>
+    simp[stack_removeTheory.compile_def]>>
+    simp[stack_removeProofTheory.prog_comp_eta]>>
+    gs[lookup_fromAList]>>
+    simp[ALOOKUP_APPEND]>>
+    conj_tac >- (
+      qpat_x_assum ‘good_code _ p’ mp_tac>>
+      simp[stack_to_labProofTheory.good_code_def]>>
+      strip_tac>>
+      gs[Once (GSYM stack_rawcallProofTheory.stack_rawcall_reg_bound)]>>
+      drule_all stack_allocProofTheory.stack_alloc_reg_bound>>
+      strip_tac>>
+      first_x_assum $ qspec_then ‘c.data_conf’ assume_tac>>
+      pop_assum $ mp_tac>>
+      gs[EVERY_MEM]>>drule ALOOKUP_MEM>>strip_tac>>strip_tac>>
+      first_x_assum $ qspec_then ‘prog'’ assume_tac>>gs[MEM_MAP]>>
+      pop_assum $ irule>>qexists_tac ‘(n, prog')’>>gs[])>>
+    simp[ALOOKUP_MAP]>>
+    drule ALOOKUP_MEM>>
+    strip_tac>>
+    gs[stack_allocTheory.compile_def]
+    >- (
+      gs[stack_allocTheory.stubs_def]>>
+      gs[stackLangTheory.gc_stub_location_def]>>
+      gs[backend_commonTheory.stack_num_stubs_def]>>
+      CASE_TAC>>gs[]>>
+      gs[stack_removeTheory.init_stubs_def])>>
+    gs[MEM_MAP]>>
+    Cases_on ‘y’>> gs[stack_allocTheory.prog_comp_def]>>
+    gs[stack_rawcallTheory.compile_def]>>
+    gs[MEM_MAP]>>
+    Cases_on ‘y’>>gs[]>>
+    drule word_to_stack_compile_FST>>
+    strip_tac>>
+
+    ‘EVERY (λprog. 60 ≤ FST prog) wprog’
+    by (
+      qpat_x_assum ‘Abbrev (wprog0 = _)’ (assume_tac o GSYM o REWRITE_RULE [markerTheory.Abbrev_def])>>
+      drule pan_to_wordProofTheory.pan_to_word_compile_prog_lab_min>>
+      gs[GSYM EVERY_MAP])>>
+    gs[wordLangTheory.raise_stub_location_def,
+       wordLangTheory.store_consts_stub_location_def]>>
+    gs[backend_commonTheory.word_num_stubs_def]>>
+    gs[backend_commonTheory.stack_num_stubs_def]>>
+    gs[GSYM EVERY_MAP]>>
+
+    CASE_TAC>>gs[]>>
+
+
+    pop_assum mp_tac>>
+    simp[stack_removeTheory.init_stubs_def]>>
+    ‘MEM q'' (MAP FST p)’ by (gs[MEM_MAP]>>qexists_tac ‘(q'', r''')’>>gs[])>>
+    gs[EVERY_MEM]>>
+    IF_CASES_TAC>- (first_x_assum $ qspec_then ‘0’ assume_tac>>gs[])>>
+    IF_CASES_TAC>- (first_x_assum $ qspec_then ‘1’ assume_tac>>gs[])>>
+    IF_CASES_TAC>- (first_x_assum $ qspec_then ‘2’ assume_tac>>gs[])>>
+    simp[])>>
+    ‘sss.compile_oracle =
+  (I ## MAP (stack_remove_prog_comp c.stack_conf.jump mc.target.config.addr_offset sp) ## I) ∘ (λx. (ltconf,[],[])) ∧
+  (∀n i p.
+     MEM (i,p) (FST (SND ((λx. (ltconf,[]:(num # α stack_rawcallProof$prog) list,[]:α word list)) n))) ⇒
+     reg_bound p sp ∧ stack_num_stubs ≤ i + 1) ∧
+  lookup stack_err_lab sss.code = SOME (halt_inst 2w) ∧
+  max_stack_alloc ≤ max_heap’
+    by (
+    gs[Abbr ‘sss’]>>
+    conj_tac >- gs[FUN_EQ_THM]>>
+    gs[lookup_fromAList]>>
+    simp[stack_removeTheory.compile_def,stack_removeTheory.init_stubs_def,
+         stack_removeTheory.stack_err_lab_def])>>
+  drule_then drule stack_removeProofTheory.init_code_thm2>>
+  rpt (disch_then $ drule_at Any)>>
+  disch_then $ qspecl_then [‘is_gen_gc c.data_conf.gc_kind’] assume_tac>>
+  gs[]>>
+
+  (* ok till here *)
+
+  (* copied skipped part *)
+
+       qabbrev_tac ‘mko = make_init_opt (is_gen_gc c.data_conf.gc_kind) max_heap bitmaps data_sp (λn. (ltconf,[],[])) c.stack_conf.jump mc.target.config.addr_offset sp (fromAList (compile c.data_conf (compile p))) sss’>>
+  gs[]>>
+  fs[stack_removeProofTheory.make_init_opt_def]>>gs[]>>
+  gs[Abbr ‘mko’]>>
+  (***)
+
+  gs[Abbr ‘sss’]>>
 gs[targetSemTheory.good_init_state_def]>>
 gs[asmPropsTheory.target_state_rel_def]>>
 gs[targetSemTheory.target_configured_def]>>
@@ -752,6 +891,7 @@ gs[targetSemTheory.target_configured_def]>>
               (INR (sp + 2) :'a word + num)’
     by gs[stack_removeTheory.store_init_def, APPLY_UPDATE_LIST_ALOOKUP]>>
   gs[]>>
+
   gs[flookup_fupdate_list]>>
   gs[REVERSE_DEF, ALOOKUP_APPEND]>>
   ‘ALL_DISTINCT (MAP FST (MAP
@@ -769,77 +909,24 @@ gs[targetSemTheory.target_configured_def]>>
   gs[stack_removeTheory.store_list_def,
      stack_removeTheory.store_init_def,
      APPLY_UPDATE_LIST_ALOOKUP]>>
-        
-  (* current head *)
+
   
-  ‘init_code_pre sp bitmaps data_sp sss’
-    by (
-    simp[stack_removeProofTheory.init_code_pre_def]>>
-    gs[stack_to_labProofTheory.memory_assumption_def]>>
-    gs[Abbr ‘sss’]>>
-    gs[FLOOKUP_MAP_KEYS_LINV]>>
-    MAP_EVERY qexists_tac [‘ptr2’, ‘ptr3’, ‘ptr4’, ‘bitmap_ptr'’]>>
-    gs[]>>
-  gs[flookup_fupdate_list]>>
-    gs[REVERSE_DEF, ALOOKUP_APPEND]>>
-    ‘mc.len2_reg ≠ mc.len_reg ∧ mc.ptr2_reg ≠ mc.len_reg ∧
-     mc.len2_reg ≠ mc.ptr2_reg’
-      by cheat>>
-    gs[]>>
-    conj_tac >- simp[domain_fromAList, stack_removeTheory.compile_def,
-                     stack_removeTheory.init_stubs_def]>>
-
-
-    conj_tac >- 
-     (qpat_x_assum ‘MEM (_ _ sp) _’ $ irule_at Any>>
-      simp[Once EQ_SYM_EQ]>>irule LINV_DEF>>
-      gs[BIJ_DEF]>>metis_tac[])>>
-    conj_tac >- 
-     (qpat_x_assum ‘MEM (_ _ (_+1)) _’ $ irule_at Any>>
-      simp[Once EQ_SYM_EQ]>>irule LINV_DEF>>
-      gs[BIJ_DEF]>>metis_tac[])>>
-     (qpat_x_assum ‘MEM (_ _ (_+2)) _’ $ irule_at Any>>
-      simp[Once EQ_SYM_EQ]>>irule LINV_DEF>>
-      gs[BIJ_DEF]>>metis_tac[]))>>
-    ‘code_rel c.stack_conf.jump mc.target.config.addr_offset sp code sss.code’
-    by (
-
-
-    ‘s.compile_oracle =
-  (I ## MAP (stack_remove_prog_comp jump off k) ## I) ∘ coracle ∧
-  (∀n i p.
-     MEM (i,p) (FST (SND (coracle n))) ⇒
-     reg_bound p k ∧ stack_num_stubs ≤ i + 1) ∧
-  lookup stack_err_lab s.code = SOME (halt_inst 2w) ∧
-  max_stack_alloc ≤ max_heap’
-
-
-
-
-  gs[]>>
-  qpat_x_assum ‘FLOOKUP _ CurrHeap = _’ mp_tac>>
-
-  ‘∃w. FLOOKUP sss.regs 2 = SOME (Word w) ∧
-       FLOOKUP r'.regs (sp + 2) = SOME (Word w)’
-    by 
-cheat>>
-  
- gs[Abbr ‘sss’]>>
-
   (*  up to here *)
+  qpat_x_assum ‘FLOOKUP r'.regs _ = SOME _’ mp_tac>>
+  qpat_x_assum ‘FLOOKUP _ _ = SOME (Word w2)’ mp_tac>>
+  qpat_x_assum ‘r'.regs ' _ = Word curr’ mp_tac>>
+  
   simp[FLOOKUP_MAP_KEYS_LINV]>>
 
-  qpat_x_assum ‘FLOOKUP r'.regs _ = SOME _’ mp_tac>>
-  qpat_x_assum ‘FLOOKUP _ _ = SOME (Word curr)’ mp_tac>>
-
-  simp[flookup_fupdate_list]>>
   rewrite_tac[flookup_fupdate_list]>>
   rewrite_tac[REVERSE_DEF, ALOOKUP_APPEND]>>
   rewrite_tac[stack_removeTheory.store_list_def]>>
   rewrite_tac[stack_removeTheory.store_init_def]>>
   simp[APPLY_UPDATE_LIST_ALOOKUP]>>
+
   gs[FLOOKUP_DEF]>>ntac 3 strip_tac>>
-  ‘w = s.base_addr’
+  gs[]>>
+  ‘w2 = s.base_addr’
     by (
     ‘labst.regs = (λk. Word (t.regs k))’
       by (
@@ -849,8 +936,17 @@ cheat>>
     ‘labst.regs mc.len_reg = Word (t.regs mc.len_reg)’ by gs[]>>
     qpat_x_assum ‘∀i. _ ⇒ mc.target.get_reg ms _ = t.regs _’ assume_tac>>
     first_assum $ qspec_then ‘mc.len_reg’ assume_tac>>gs[]>>
-    rveq>>pop_assum mp_tac>>impl_tac>- 
+pop_assum mp_tac>>impl_tac>- 
      gs[asmTheory.reg_ok_def]>>
-    strip_tac>>rveq>>gs[])>>gs[]>>
+    strip_tac>>gs[])>>
+    gs[]>>
 
+
+
+
+
+
+
+
+        
 val _ = export_theory();
