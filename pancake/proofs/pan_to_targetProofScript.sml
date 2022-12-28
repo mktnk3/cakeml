@@ -272,8 +272,13 @@ Theorem pan_to_target_compile_semantics:
   s.locals = FEMPTY ∧ size_of_eids pan_code < dimword (:α) ∧
   FDOM s.eshapes = FDOM ((get_eids pan_code):mlstring |-> 'a word) ∧
   backend_config_ok c ∧ lab_to_targetProof$mc_conf_ok mc ∧
-  mc_init_ok c mc ∧ mc.target.get_reg ms mc.len_reg = s.base_addr ∧
-  
+  mc_init_ok c mc ∧
+  mc.target.get_reg ms mc.len_reg = s.base_addr ∧
+  mc.prog_addresses = s.memaddrs ∧
+  (∀a. ∃w.
+         mc.target.get_byte ms a =
+         get_byte a w mc.target.config.big_endian ∧
+         (mk_mem (make_funcs (compile_prog pan_code)) s.memory) (byte_align a) = Word w) ∧
   s.ffi = ffi ∧ mc.target.config.big_endian = s.be ∧
   installed bytes cbspace bitmaps data_sp c'.lab_conf.ffi_names (heap_regs c.stack_conf.reg_names) mc ms ∧
   semantics s start ≠ Fail ⇒
@@ -712,6 +717,8 @@ Proof
   ‘ALOOKUP pan_code start = SOME ([],prog)’
     by (drule_all ALOOKUP_ALL_DISTINCT_EL>>strip_tac>>gs[])>>gs[]>>
 
+(* maybe use init_store_ok? *)
+
   fs[stack_to_labProofTheory.full_make_init_def]>>
   Cases_on ‘opt’>>gs[Abbr ‘lorac’]>>
   fs[combinTheory.o_DEF]>>
@@ -721,12 +728,12 @@ Proof
   Cases_on ‘evaluate (init_code (is_gen_gc c.data_conf.gc_kind) max_heap sp, sss)’>>
   rename1 ‘_= (q', r')’>>Cases_on ‘q'’>>gs[]>>
 
+  (* init_code shows here *)
+
   gs[stack_namesProofTheory.make_init_def]>>
   gs[stack_to_labProofTheory.make_init_def]>>
   gs[stack_allocProofTheory.make_init_def]>>
   gs[stack_removeProofTheory.make_init_any_def]>>
-
-  (* init_code shows here *)
 
   qpat_x_assum ‘_ = labst.len2_reg’ $ assume_tac o GSYM>>
   qpat_x_assum ‘_ = labst.ptr2_reg’ $ assume_tac o GSYM>>
@@ -861,14 +868,11 @@ Proof
     gs[lookup_fromAList]>>
     simp[stack_removeTheory.compile_def,stack_removeTheory.init_stubs_def,
          stack_removeTheory.stack_err_lab_def])>>
+
   drule_then drule stack_removeProofTheory.init_code_thm2>>
   rpt (disch_then $ drule_at Any)>>
   disch_then $ qspecl_then [‘is_gen_gc c.data_conf.gc_kind’] assume_tac>>
   gs[]>>
-
-  (* ok till here *)
-
-  (* copied skipped part *)
 
        qabbrev_tac ‘mko = make_init_opt (is_gen_gc c.data_conf.gc_kind) max_heap bitmaps data_sp (λn. (ltconf,[],[])) c.stack_conf.jump mc.target.config.addr_offset sp (fromAList (compile c.data_conf (compile p))) sss’>>
   gs[]>>
@@ -876,16 +880,18 @@ Proof
   gs[Abbr ‘mko’]>>
   (***)
 
+  (***)
   gs[Abbr ‘sss’]>>
+
+  gs[stack_removeProofTheory.init_prop_def]>>
+  gs[stack_removeProofTheory.init_reduce_def]>>
+  rveq>>gs[]>>
+
+(*
 gs[targetSemTheory.good_init_state_def]>>
 gs[asmPropsTheory.target_state_rel_def]>>
 gs[targetSemTheory.target_configured_def]>>
-
-    gs[stack_removeProofTheory.init_prop_def]>>
-  gs[stack_removeProofTheory.init_reduce_def]>>
-        rveq>>gs[]>>
-
-        (* here *)
+*)
 
   ‘store_init (is_gen_gc c.data_conf.gc_kind) sp CurrHeap =
               (INR (sp + 2) :'a word + num)’
@@ -910,8 +916,6 @@ gs[targetSemTheory.target_configured_def]>>
      stack_removeTheory.store_init_def,
      APPLY_UPDATE_LIST_ALOOKUP]>>
 
-  
-  (*  up to here *)
   qpat_x_assum ‘FLOOKUP r'.regs _ = SOME _’ mp_tac>>
   qpat_x_assum ‘FLOOKUP _ _ = SOME (Word w2)’ mp_tac>>
   qpat_x_assum ‘r'.regs ' _ = Word curr’ mp_tac>>
@@ -934,6 +938,11 @@ gs[targetSemTheory.target_configured_def]>>
       simp[lab_to_targetProofTheory.make_init_def]>>
       simp[labSemTheory.state_component_equality])>>
     ‘labst.regs mc.len_reg = Word (t.regs mc.len_reg)’ by gs[]>>
+
+(* need target_state_rel *)
+gs[targetSemTheory.good_init_state_def]>>
+gs[asmPropsTheory.target_state_rel_def]>>
+
     qpat_x_assum ‘∀i. _ ⇒ mc.target.get_reg ms _ = t.regs _’ assume_tac>>
     first_assum $ qspec_then ‘mc.len_reg’ assume_tac>>gs[]>>
 pop_assum mp_tac>>impl_tac>- 
@@ -942,8 +951,63 @@ pop_assum mp_tac>>impl_tac>-
     gs[]>>
 
 
+  (* ok till here *)
+  (*  ‘r'.memory = labst.mem ∧ r'.mdomain = labst.mem_domain’ by cheat>>*)
+  
+  ‘r'.memory = labst.mem’ by cheat>>
+
+  gs[stack_removeProofTheory.state_rel_def]>>
+  gs[flookup_fupdate_list]>>
+  gs[REVERSE_DEF, ALOOKUP_APPEND]>>
+  gs[wordSemTheory.theWord_def, stack_removeProofTheory.the_SOME_Word_def]>>
+  gs[APPLY_UPDATE_LIST_ALOOKUP]>>
+  Cases_on ‘FLOOKUP r'.regs (sp + 1)’>>gs[]>>
+  Cases_on ‘x’>>gs[]>>
+
+  qpat_x_assum ‘Abbrev (labst = _)’ (mp_tac o REWRITE_RULE [markerTheory.Abbrev_def])>>
+  simp[lab_to_targetProofTheory.make_init_def]>>
+  simp[labSemTheory.state_component_equality]>>
+strip_tac>>
+gs[]>>
+
+  gs[targetSemTheory.good_init_state_def]>>
+  gs[targetSemTheory.target_configured_def]>>
+  gs[asmPropsTheory.target_state_rel_def]>>
+
+  gs[stack_to_labProofTheory.memory_assumption_def]>>
+  gs[wordSemTheory.theWord_def, stack_removeProofTheory.the_SOME_Word_def]>>
+  gs[stack_removeProofTheory.is_SOME_Word_def]>>
+
+  (* equality of memories as functions?? *)
 
 
+
+        ‘labst.mem = ∧ labst.mem_domain = ’
+  
+    gs[stack_removeProofTheory.state_rel_def]>>
+    gs[word_to_stackProofTheory.init_state_ok_def]>>
+    gs[stack_to_labProofTheory.memory_assumption_def]>>
+
+
+    
+  conj_tac >- (
+    gs[stack_removeProofTheory.state_rel_def]>>
+
+  gs[flookup_fupdate_list]>>
+    gs[REVERSE_DEF, ALOOKUP_APPEND]>>
+    gs[wordSemTheory.theWord_def, stack_removeProofTheory.the_SOME_Word_def]>>
+  gs[APPLY_UPDATE_LIST_ALOOKUP]>>
+    Cases_on ‘FLOOKUP r'.regs (sp + 1)’>>gs[]>>
+Cases_on ‘x’>>gs[]>>
+
+    
+  rewrite_tac[stack_removeTheory.store_list_def]>>
+  rewrite_tac[stack_removeTheory.store_init_def]>>
+
+
+
+    Cases_on ‘x’>>gs[]>>
+    
 
 
 
