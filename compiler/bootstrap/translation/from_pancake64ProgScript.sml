@@ -387,7 +387,7 @@ Proof
   rpt(PURE_FULL_CASE_TAC \\ gvs[]) \\
   last_x_assum (simp o single o GSYM)
 QED
-        
+
 val res = translate_no_ind $ conv_ShapeList_def;
 
 val ind_lemma = Q.prove(
@@ -430,67 +430,449 @@ val res = translate kw_def;
 
 val res = translate $ spec64 isSubOp_def;
 
-val res = translate_no_ind $ spec64 panPtreeConversionTheory.conv_Shift_def;
-
-Triviality panptreeconversion_conv_shift_1_ind:
-  panptreeconversion_conv_shift_1_ind
+Theorem conv_Shift_thm:
+  ∀xs. panPtreeConversion$conv_Shift xs e =
+  case xs of [] => SOME e
+          |  [x] => NONE
+          |  (t1::t2::ts) =>
+               (case conv_shift t1 of
+                  SOME op =>
+                    (case conv_nat t2 of
+                       SOME n => conv_Shift ts (Shift op e n)
+                     | NONE => NONE)
+                | NONE => NONE)
 Proof
-  once_rewrite_tac [fetch "-" "panptreeconversion_conv_shift_1_ind_def"]
-  \\ rpt gen_tac
-  \\ rpt (disch_then strip_assume_tac)
-  \\ match_mp_tac (latest_ind ())
-  \\ rpt strip_tac
-  \\ last_x_assum match_mp_tac
-  \\ rpt strip_tac
-  \\ gvs [FORALL_PROD]
+cheat
 QED
 
-val _ = panptreeconversion_conv_shift_1_ind |> update_precondition;
+val res = translate $ INST_TYPE[beta|->``:64``] conv_Shift_thm;
 
-fetch "-" "panptreeconversion_conv_shift_1_ind_def"
+Definition conv_Exp_alt_def:
+  (conv_mmap_exp l =
+   (case l of
+      [] => SOME []
+    | x::xs =>
+        (case conv_Exp_alt x of
+           NONE => NONE
+         | SOME y =>
+             (case conv_mmap_exp xs of
+                NONE => NONE
+              | SOME ys => SOME (y::ys))))) ∧
+  (conv_ArgList_alt tree =
+        case argsNT tree ArgListNT of
+          NONE => NONE
+        | SOME [] => NONE
+        | SOME (t::ts) => conv_mmap_exp (t::ts)) ∧
+  (conv_Exp_alt tree =
+   (case tree of
+      Nd nodeNT args =>
+         if isNT nodeNT EBaseNT then
+           case args of
+             [] => NONE
+           | [t] =>
+               OPTION_CHOICE (OPTION_CHOICE (conv_const t) (conv_var t))
+                             (conv_Exp_alt t)
+           | t::v4::v5 =>
+               FOLDR (λt. OPTION_MAP2 Field (conv_nat t)) (conv_Exp_alt t) (v4::v5)
+         else if isNT nodeNT LabelNT then
+           case args of
+             [] => NONE
+           | [t] => OPTION_MAP Label (conv_ident t)
+           | t::v6::v7 => NONE
+         else if isNT nodeNT StructNT then
+           case args of
+             [] => NONE
+           | [ts] => do es <- conv_ArgList_alt ts; SOME (Struct es) od
+           | ts::v6::v7 => NONE
+         else if isNT nodeNT LoadByteNT then
+           case args of
+             [] => NONE
+           | [t] => OPTION_MAP LoadByte (conv_Exp_alt t)
+           | t::v6::v7 => NONE
+         else if isNT nodeNT LoadNT then
+           case args of
+             [] => NONE
+           | [t1] => NONE
+           | [t1; t2] =>
+               (case conv_Shape t1 of
+                  NONE => NONE
+                | SOME s =>
+                    (case conv_Exp_alt t2 of
+                       NONE => NONE
+                     | SOME e => SOME (Load s e)))
+           | t1::t2::v10::v11 => NONE
+         else if isNT nodeNT ECmpNT ∨ isNT nodeNT EEqNT then
+           case args of
+             [] => NONE
+           | [e] => conv_Exp_alt e
+           | [e; op] => NONE
+           | [e; op; e2] =>
+               (case conv_Exp_alt e of
+                  NONE => NONE
+                | SOME e1' =>
+                    (case conv_cmp op of
+                       NONE => NONE
+                     | SOME op' =>
+                         (case conv_Exp_alt e2 of
+                            NONE => NONE
+                          | SOME e2' => SOME (Cmp op' e1' e2'))))
+           | e::op::e2::v14::v15 => NONE
+         else if isNT nodeNT EShiftNT then
+           case args of
+             [] => NONE
+           | e::es => monad_bind (conv_Exp_alt e) (conv_Shift es)
+         else if EXISTS (isNT nodeNT) binaryExps then
+           case args of
+             [] => NONE
+           | e::es =>
+               (case conv_Exp_alt e of
+                  NONE => NONE
+                | SOME a => conv_binaryExps_alt es a)
+         else NONE
+    | Lf v12 =>
+        if tokcheck (Lf v12) (kw BaseK) then SOME BaseAddr else NONE)) ∧
+  (conv_binaryExps_alt trees res =
+   (case trees of
+      [] => SOME res
+    | [x] => NONE
+    | t1::t2::ts =>
+        (case conv_binop t1 of
+           NONE => NONE
+         | SOME op =>
+             (case conv_Exp_alt t2 of
+                NONE => NONE
+              | SOME e' =>
+                  (case res of
+                     Const v17 => conv_binaryExps_alt ts (Op op [Const v17; e'])
+                   | Var v18 => conv_binaryExps_alt ts (Op op [Var v18; e'])
+                   | Label v19 => conv_binaryExps_alt ts (Op op [Label v19; e'])
+                   | Struct v20 => conv_binaryExps_alt ts (Op op [Struct v20; e'])
+                   | Field v21 v22 => conv_binaryExps_alt ts (Op op [Field v21 v22; e'])
+                   | Load v23 v24 => conv_binaryExps_alt ts (Op op [Load v23 v24; e'])
+                   | LoadByte v25 => conv_binaryExps_alt ts (Op op [LoadByte v25; e'])
+                   | Op bop es =>
+                       if bop ≠ op ∨ isSubOp res then
+                         conv_binaryExps_alt ts (Op bop [res; e'])
+                       else conv_binaryExps_alt ts (Op bop (es ++ [e']))
+                   | Cmp v28 v29 v30 =>
+                       conv_binaryExps_alt ts (Op op [Cmp v28 v29 v30; e'])
+                   | Shift v31 v32 v33 =>
+                       conv_binaryExps_alt ts (Op op [Shift v31 v32 v33; e'])
+                   | BaseAddr => conv_binaryExps_alt ts (Op op [BaseAddr; e']))))))
+Termination
+  WF_REL_TAC ‘measure (λx. case x of
+                             INR (INR (INR x)) => ptree1_size (FST x)
+                           | INR (INR (INL x)) => ptree_size x
+                           | INR (INL x) => ptree_size x
+                           | INL x => ptree1_size x)’ >> rw[]
+  >> Cases_on ‘tree’
+  >> gvs[argsNT_def,grammarTheory.parsetree_size_def]
+End
 
+val tree = “tree:(token, pancakeNT, β) parsetree”
+val trees = “trees:(token, pancakeNT, β) parsetree list”
 
-Theorem conv_shift_1_side[local]:
-  ∀x y. panptreeconversion_conv_shift_1_side x y
+Triviality conv_Exp_thm:
+  (∀trees. (conv_mmap_exp ^trees:'a panLang$exp list option) = OPT_MMAP (λtree. conv_Exp ^tree) ^trees)
+  ∧
+  (∀tree. conv_ArgList_alt ^tree = (conv_ArgList ^tree: 'a panLang$exp list option))
+  ∧
+  (∀tree. conv_Exp_alt ^tree = (conv_Exp ^tree:'a panLang$exp option))
+  ∧
+  (∀trees res. conv_binaryExps_alt ^trees res = (conv_binaryExps ^trees res: 'a panLang$exp option))
 Proof
-  once_rewrite_tac [fetch "-" "panptreeconversion_conv_shift_1_side_def"]
-  >> rw[]
-  >> gs[integerTheory.INT_GE_CALCULATE]
+  ho_match_mp_tac (fetch "-" "conv_Exp_alt_ind") \\ rpt strip_tac \\
+  rw[]
+  >- (Cases_on ‘trees’>-ntac 2 (gs[Once conv_Exp_alt_def])>>
+      gs[]>>
+      Cases_on ‘conv_Exp h’>>gs[]>>
+      simp[Once conv_Exp_alt_def] \\
+      CASE_TAC>>gs[])
+  >- (simp[Once conv_Exp_alt_def]>>
+      PURE_CASE_TAC>>gs[]>>
+      simp[conv_Exp_def]>>
+      rename1 ‘_ = SOME x’>>Cases_on ‘x’>>gs[])
+  >- (Cases_on ‘tree’>>fs[]
+      >- simp[conv_Exp_alt_def, conv_Exp_def]>>
+      rename1 ‘Nd p l’>>
+      Cases_on ‘isNT p EBaseNT’>>fs[]
+      >- (Cases_on ‘l’>>gs[]>>
+          simp[Once conv_Exp_alt_def,Once conv_Exp_def]
+          >- cheat>>
+          Cases_on ‘t’>>gs[]>>
+          simp[Once conv_Exp_alt_def,Once conv_Exp_def])>>
+      Cases_on ‘isNT p LabelNT’>>fs[]
+      >- (Cases_on ‘l’>>gs[]>>
+          simp[Once conv_Exp_alt_def,Once conv_Exp_def])>>
+      Cases_on ‘isNT p StructNT’>>fs[]
+      >- (Cases_on ‘l’>>gs[]
+          >- simp[Once conv_Exp_alt_def,Once conv_Exp_def]>>
+          rename1 ‘h::t’>>Cases_on ‘t’>>fs[]>>
+          simp[Once conv_Exp_alt_def]>>simp[conv_Exp_def])>>
+      Cases_on ‘isNT p LoadByteNT’>>fs[]
+      >- (Cases_on ‘l’>>gs[]
+          >- simp[Once conv_Exp_alt_def,Once conv_Exp_def]>>
+          rename1 ‘h::t’>>Cases_on ‘t’>>fs[]>>
+          simp[Once conv_Exp_alt_def]>>simp[conv_Exp_def])>>
+      Cases_on ‘isNT p LoadNT’>>fs[]
+      >- (Cases_on ‘l’>>gs[]
+          >- simp[Once conv_Exp_alt_def,Once conv_Exp_def]>>
+          rename1 ‘h::t’>>Cases_on ‘t’>>fs[]>>
+          simp[Once conv_Exp_alt_def]>>simp[conv_Exp_def]>>
+          rename1 ‘conv_Shape h’>>Cases_on ‘conv_Shape h’>>gs[]>>
+          TOP_CASE_TAC>>gs[]>>CASE_TAC>>gs[])>>
+      Cases_on ‘isNT p ECmpNT ∨ isNT p EEqNT’
+      >- (simp[]>>
+          Cases_on ‘l’>>gs[]>>
+          TRY (simp[Once conv_Exp_alt_def,Once conv_Exp_def]>>NO_TAC)>>
+          (rename1 ‘h::t’>>Cases_on ‘t’>>fs[]>>
+          TRY (simp[Once conv_Exp_alt_def,Once conv_Exp_def]>>NO_TAC)>>
+          rename1 ‘h::h'::t'’>>Cases_on ‘t'’>>fs[]
+          >- simp[Once conv_Exp_alt_def,Once conv_Exp_def]>>
+          rename1 ‘h''::t’>>Cases_on ‘t’>>fs[]>>
+          simp[Once conv_Exp_alt_def,Once conv_Exp_def]>>
+          rpt (CASE_TAC>>gs[])))>>
+      Cases_on ‘l’>>gs[]>>
+      simp[Once conv_Exp_alt_def,Once conv_Exp_def]>>
+      IF_CASES_TAC>>gs[]>>
+      IF_CASES_TAC>>gs[]>>
+      Cases_on ‘conv_Exp h’>>gs[])>>
+  Cases_on ‘trees’>>fs[]>>
+  simp[Once conv_Exp_alt_def,Once conv_Exp_def]>>
+  Cases_on ‘t’>>fs[]>>
+  simp[Once conv_Exp_def]>>
+  Cases_on ‘conv_binop h’>>Cases_on ‘conv_Exp h'’>> Cases_on ‘res’>>fs[]
 QED
 
+val res = translate_no_ind $ spec64 $ SIMP_RULE std_ss [option_map_thm, OPTION_MAP2_thm, FOLDR_eta] conv_Exp_alt_def;
 
 val ind_lemma = Q.prove(
   `^(hd (hyp res))`,
-  PURE_REWRITE_TAC [fetch "-" "panptreeconversion_conv_shift_1_ind_def"]
-  >> ONCE_REWRITE_TAC [fetch "-" "panptreeconversion_conv_shift_1_side_def"]>>
-     rw[PRECONDITION_DEF]
+  PURE_REWRITE_TAC [fetch "-" "from_pancake64prog_conv_mmap_exp_ind_def"]
   \\ rpt gen_tac
   \\ rpt (disch_then strip_assume_tac)
   \\ match_mp_tac (latest_ind ())
   \\ rpt strip_tac
-  \\ TRY (last_x_assum match_mp_tac
-          \\ rpt strip_tac
-          \\ fs [FORALL_PROD] \\ NO_TAC))
+  >- (last_x_assum match_mp_tac>>
+      rpt strip_tac>>res_tac)
+  >- (last_x_assum match_mp_tac>>
+      rpt strip_tac>>res_tac)
+  >- (last_x_assum match_mp_tac>>
+      ntac 3 strip_tac>>
+      rename1 ‘tree = Nd p l’>>
+      rpt (first_x_assum (qspecl_then [‘p’, ‘l’] assume_tac))>>
+      rw[]>>fs[])>>
+  last_x_assum match_mp_tac>>
+  ntac 9 strip_tac>>fs[])
   |> update_precondition;
 
+val res = translate $ spec64 $ GSYM $ cj 3 conv_Exp_thm
 
+val res = translate $ spec64 $ GSYM $ cj 2 conv_Exp_thm
 
-Theorem conv_shift_1_side[local]:
-  ∀x. panptreeconversion_conv_shift_1_side x
+val res = translate $ spec64 $ SIMP_RULE std_ss [option_map_thm, OPTION_MAP2_thm] conv_NonRecStmt_def;
+
+val res = translate butlast_def;
+
+Definition conv_Prog_alt_def:
+  (conv_Handle_alt tree =
+   case argsNT tree HandleNT of
+     NONE => NONE
+   | SOME [] => NONE
+   | SOME [eid] => NONE
+   | SOME [eid; id] => NONE
+   | SOME [eid; id; p] =>
+       (case conv_ident eid of
+          NONE => NONE
+        | SOME excp =>
+            (case conv_ident id of
+               NONE => NONE
+             | SOME var =>
+                 (case conv_Prog_alt p of
+                    NONE => NONE
+                  | SOME prog => SOME (SOME (excp,var,prog)))))
+   | SOME (eid::id::p::v16::v17) => NONE) ∧
+  (conv_Ret_alt tree =
+   case argsNT tree RetNT of
+     NONE => NONE
+   | SOME [] => NONE
+   | SOME [id] =>
+       (case conv_ident id of
+          NONE => NONE
+        | SOME var => SOME (SOME (var,NONE)))
+   | SOME [id; t] =>
+       (case conv_ident id of
+          NONE => NONE
+        | SOME var =>
+            (case conv_Handle_alt t of
+               NONE => NONE
+             | SOME hdl => SOME (SOME (var,hdl))))
+   | SOME (id::t::v12::v13) => NONE) ∧
+  (conv_Prog_alt tree =
+   case tree of
+     Nd nodeNT args =>
+       if isNT nodeNT DecNT then
+         case args of
+           [] => NONE
+         | [id] => NONE
+         | [id; e] => NONE
+         | [id; e; p] =>
+             (case conv_ident id of
+                NONE => NONE
+              | SOME v =>
+                  (case conv_Exp e of
+                     NONE => NONE
+                   | SOME e' =>
+                       (case conv_Prog_alt p of
+                          NONE => NONE
+                        | SOME p' => SOME (Dec v e' p'))))
+         | id::e::p::v15::v16 => NONE
+       else if isNT nodeNT IfNT then
+         case args of
+           [] => NONE
+         | [e] => NONE
+         | [e; p] =>
+             (case conv_Exp e of
+                NONE => NONE
+              | SOME e' =>
+                  (case conv_Prog_alt p of
+                     NONE => NONE
+                   | SOME p' => SOME (If e' p' Skip)))
+         | [e; p; p2] =>
+             (case conv_Exp e of
+                NONE => NONE
+              | SOME e' =>
+                  (case conv_Prog_alt p of
+                     NONE => NONE
+                   | SOME p1' =>
+                       (case conv_Prog_alt p2 of
+                          NONE => NONE
+                        | SOME p2' => SOME (If e' p1' p2'))))
+         | e::p::p2::v14::v15 => NONE
+       else if isNT nodeNT WhileNT then
+         case args of
+           [] => NONE
+         | [e] => NONE
+         | [e; p] =>
+             (case conv_Exp e of
+                NONE => NONE
+              | SOME e' =>
+                  (case conv_Prog_alt p of
+                     NONE => NONE
+                   | SOME p' => SOME (While e' p')))
+         | e::p::v10::v11 => NONE
+       else if isNT nodeNT CallNT then
+         (case args of
+            [] => NONE
+          | r::ts =>
+              (case conv_Ret_alt r of
+                 NONE =>
+                   (case conv_Exp r of
+                      NONE => NONE
+                    | SOME e' =>
+                        (case ts of
+                           [] => SOME $ TailCall e' []
+                         | as::xs =>
+                             (case conv_ArgList as of
+                                NONE => NONE
+                              | SOME args' => SOME $ TailCall e' args')))
+               | SOME r' =>
+                   (case ts of
+                      [] => NONE
+                    | e::args =>
+                        (case conv_Exp e of
+                           NONE => NONE
+                         | SOME e' =>
+                             (case args of
+                                [] => SOME $ Call r' e' []
+                              | as::xs =>
+                                  (case conv_ArgList as of
+                                     NONE => NONE
+                                   | SOME args' => SOME $ Call r' e' args'))))))
+       else if isNT nodeNT ProgNT then
+         (case args of
+           [] => NONE
+         | t::ts =>
+             (if ts ≠ [] then
+               FOLDR (λt' p. OPTION_MAP2 Seq t' p) (conv_Prog_alt (LAST ts))
+                     (MAP (λa. conv_Prog_alt a) (t::butlast ts))
+              else conv_Prog_alt t))
+       else conv_NonRecStmt (Nd nodeNT args)
+   | Lf v22 => conv_NonRecStmt (Lf v22))
+Termination
+  WF_REL_TAC ‘measure (λx. case x of
+                             INR x => sum_CASE x ptree_size ptree_size
+                           | INL x => ptree_size x)’
+  >> rw[] >> gvs[argsNT_def,grammarTheory.parsetree_size_def]>>
+  TRY (Cases_on ‘tree’ >> gvs[argsNT_def,grammarTheory.parsetree_size_def])
+  >- (
+  drule mem_ptree_thm>>strip_tac>>
+  gs[grammarTheory.parsetree_size_eq]>>
+  gvs[grammarTheory.parsetree_size_def]>>
+  ‘list_size ptree_size (butlast ts) ≤ list_size ptree_size ts’
+    by irule list_size_butlast>>
+  gs[])>>
+  gs[grammarTheory.parsetree_size_eq]>>
+  gvs[grammarTheory.parsetree_size_def]>>
+  ‘ptree_size (LAST ts) ≤ list_size ptree_size ts’
+    by (irule list_size_MEM>>
+        gs[LAST_EL, MEM_EL]>>
+        qexists_tac ‘PRE (LENGTH ts)’>>gs[]>>
+        Cases_on ‘ts’>>gs[])>>
+  gs[]
+End
+
+(*val tree = “tree:(token, pancakeNT, β) parsetree”*)
+
+Triviality conv_Prog_thm:
+  (∀tree. conv_Handle_alt ^tree = (conv_Handle ^tree: (mlstring # mlstring # 'a panLang$prog) option option))
+  ∧
+  (∀tree. conv_Ret_alt ^tree = (conv_Ret ^tree: (mlstring # (mlstring # mlstring # 'a panLang$prog) option) option option))
+  ∧
+  (∀tree. conv_Prog_alt ^tree = (conv_Prog ^tree: 'a panLang$prog option))
 Proof
-  rw [fetch "-" "panptreeconversion_conv_shift_1_side_def"]
-  >> gs[integerTheory.INT_GE_CALCULATE]
+  ho_match_mp_tac (fetch "-" "conv_Prog_alt_ind") \\ rpt strip_tac \\
+  rw[]
+  >- (simp[Once conv_Prog_alt_def, Once conv_Prog_def]>>
+      rpt (CASE_TAC>>fs[]))
+  >- (simp[Once conv_Prog_alt_def, Once conv_Prog_def]>>
+      rpt (CASE_TAC>>fs[]))>>
+  (Cases_on ‘tree’
+   >- (rewrite_tac[Once conv_Prog_alt_def,Once conv_Prog_def]>>fs[])>>
+   rewrite_tac[Once conv_Prog_alt_def,Once conv_Prog_def]>>fs[]>>
+   rpt (IF_CASES_TAC>>fs[])
+   >- (ntac 7 (CASE_TAC>>fs[]))
+   >- (ntac 7 (CASE_TAC>>fs[])>>metis_tac[])
+   >- (ntac 7 (CASE_TAC>>fs[])>>metis_tac[])
+   >-cheat>>
+   (CASE_TAC>>fs[])>>
+   (IF_CASES_TAC>>fs[])>>
+   gs[]>>
+   cheat)
 QED
 
-val _ = update_precondition conv_nat_side;
+val res = translate_no_ind $ spec64 $ SIMP_RULE std_ss [option_map_thm, OPTION_MAP2_thm, FOLDR_eta] conv_Prog_alt_def;
 
+val ind_lemma = Q.prove(
+  `^(hd (tl (hyp res)))`,
+  PURE_REWRITE_TAC [fetch "-" "from_pancake64prog_conv_handle_alt_ind_def"]
+  \\ rpt gen_tac
+  \\ rpt (disch_then strip_assume_tac)
+  \\ match_mp_tac (spec64 $ latest_ind ())
+  \\ rpt strip_tac
+  >- (last_x_assum match_mp_tac>>
+      rpt strip_tac>>res_tac)
+  >- (last_x_assum match_mp_tac>>
+      rpt strip_tac>>res_tac)>>
+  last_x_assum match_mp_tac>>
+  ntac 3 strip_tac>>
+  rename1 ‘tree = Nd p l’>>
+  rpt (first_x_assum (qspecl_then [‘p’, ‘l’] assume_tac))>>
+  rw[]>>fs[])
+  |> update_precondition;
 
-val res = translate_no_ind $ spec64 $ SIMP_RULE std_ss [option_map_thm,OPTION_MAP2_thm,FOLDR_eta] $ conv_Exp_def;
+val res = translate $ spec64 $ GSYM $ cj 3 conv_Prog_thm
 
-val res = translate $ INST_TYPE[beta|->``:64``] conv_NonRecStmt_def;
-
-val res = translate $ spec64 conv_Prog_def;
-    
 val res = translate $ spec64 parse_to_ast_def;
 
 val _ = ml_translatorLib.ml_prog_update (ml_progLib.close_module NONE);
