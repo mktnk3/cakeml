@@ -398,9 +398,9 @@ QED
 val res = translate_no_ind $ conv_ShapeList_def;
 
 Theorem conv_shape_alt_ind:
-  from_pancake64prog_conv_shape_alt_ind (:'a)
+  from_pancake32prog_conv_shape_alt_ind (:'a)
 Proof
-  rewrite_tac [fetch "-" "from_pancake64prog_conv_shape_alt_ind_def"]
+  rewrite_tac [fetch "-" "from_pancake32prog_conv_shape_alt_ind_def"]
   \\ rpt gen_tac
   \\ rpt (disch_then strip_assume_tac)
   \\ match_mp_tac (latest_ind ())
@@ -613,9 +613,9 @@ QED
 val res = translate_no_ind $ spec32 $ SIMP_RULE std_ss [option_map_thm, OPTION_MAP2_thm, FOLDR_eta] conv_Exp_alt_def;
 
 Theorem conv_Exp_ind[local]:
-  from_pancake64prog_conv_mmap_exp_ind (:'a)
+  from_pancake32prog_conv_mmap_exp_ind (:'a)
 Proof
-  PURE_REWRITE_TAC [fetch "-" "from_pancake64prog_conv_mmap_exp_ind_def"]
+  PURE_REWRITE_TAC [fetch "-" "from_pancake32prog_conv_mmap_exp_ind_def"]
   \\ rpt gen_tac
   \\ rpt (disch_then strip_assume_tac)
   \\ match_mp_tac (latest_ind ())
@@ -643,7 +643,7 @@ val res = translate $ spec32 $ SIMP_RULE std_ss [option_map_thm, OPTION_MAP2_thm
 
 val res = translate butlast_def;
 
-val res = preprocess $ spec64 conv_Prog_def |> translate_no_ind;
+val res = preprocess $ spec32 conv_Prog_def |> translate_no_ind;
 
 Theorem conv_Prog_ind:
   panptreeconversion_conv_handle_ind (:'b)
@@ -651,7 +651,7 @@ Proof
   PURE_REWRITE_TAC [fetch "-" "panptreeconversion_conv_handle_ind_def"]
   \\ rpt gen_tac
   \\ rpt (disch_then strip_assume_tac)
-  \\ match_mp_tac (spec64 $ latest_ind ())
+  \\ match_mp_tac (spec32 $ latest_ind ())
   \\ rpt strip_tac
   >> (last_x_assum match_mp_tac>>
       rpt strip_tac>>fs[])
