@@ -262,6 +262,42 @@ Proof
   EVAL_TAC>>fs[]
 QED
 
+val pan_installed_def = Define`
+  pan_installed bytes cbspace bitmaps data_sp ffi_names (r1,r2) mc_conf ms p_mem p_dom ⇔
+    ∃t m io_regs cc_regs bitmap_ptr bitmaps_dm.
+      let heap_stack_dm = { w | t.regs r1 <=+ w ∧ w <+ t.regs r2 } in
+      (∀a. a ∈ p_dom ⇒ m a = p_mem a) ∧
+      p_dom = ∧
+      good_init_state mc_conf ms bytes cbspace t m (heap_stack_dm ∪ bitmaps_dm) io_regs cc_regs ∧
+      byte_aligned (t.regs r1) /\
+      byte_aligned (t.regs r2) /\
+      byte_aligned bitmap_ptr /\
+      t.regs r1 ≤₊ t.regs r2 /\
+      1024w * bytes_in_word ≤₊ t.regs r2 - t.regs r1 /\
+      DISJOINT heap_stack_dm bitmaps_dm ∧
+      m (t.regs r1) = Word bitmap_ptr ∧
+      m (t.regs r1 + bytes_in_word) =
+        Word (bitmap_ptr + bytes_in_word * n2w (LENGTH bitmaps)) ∧
+      m (t.regs r1 + 2w * bytes_in_word) =
+        Word (bitmap_ptr + bytes_in_word * n2w data_sp +
+              bytes_in_word * n2w (LENGTH bitmaps)) ∧
+      m (t.regs r1 + 3w * bytes_in_word) =
+        Word (mc_conf.target.get_pc ms + n2w (LENGTH bytes)) ∧
+      m (t.regs r1 + 4w * bytes_in_word) =
+        Word (mc_conf.target.get_pc ms + n2w cbspace + n2w (LENGTH bytes)) ∧
+      (word_list bitmap_ptr (MAP Word bitmaps) *
+        word_list_exists (bitmap_ptr + bytes_in_word * n2w (LENGTH bitmaps)) data_sp)
+       (fun2set (m,byte_aligned ∩ bitmaps_dm)) ∧
+      ffi_names = SOME mc_conf.ffi_names`;
+
+Theorem pan_installed_imp_installed:
+  pan_installed bytes cbspace bitmaps data_sp ffi_names (r1,r2) mc_conf ms p_mem p_dom ⇒
+  installed bytes cbspace bitmaps data_sp ffi_names (r1,r2) mc_conf ms
+Proof
+  rw[pan_installed_def, targetSemTheory.installed_def]>>
+  metis_tac[]
+QED
+                
 Theorem pan_to_target_compile_semantics:
   pan_to_target$compile_prog c pan_code = SOME (bytes, bitmaps, c') ∧
   distinct_params pan_code ∧
@@ -274,15 +310,16 @@ Theorem pan_to_target_compile_semantics:
   FDOM s.eshapes = FDOM ((get_eids pan_code):mlstring |-> 'a word) ∧
   backend_config_ok c ∧ lab_to_targetProof$mc_conf_ok mc ∧
   mc_init_ok c mc ∧
-  mc.target.get_reg ms mc.len2_reg = s.base_addr ∧
+  mc.target.get_reg ms mc.len_reg = s.base_addr ∧
+(*  s.memaddrs =  {w | s.base_addr ≤₊ w ∧ w <₊ mc.target.get_reg ms mc.ptr2_reg} ∧ *)
+(*  s.memaddrs = addresses (mc.target.get_reg ms mc.len_reg) X ∧*)
 (*  s.memaddrs = addresses (mc.target.get_reg ms mc.len_reg)
-             (w2n ((mc.target.get_reg ms mc.ptr_reg) + -1w * (mc.target.get_reg ms mc.len_reg)) DIV (dimindex (:α) DIV 8) − 48)∧*)
-(*  (∀a. ∃w.
-         mc.target.get_byte ms a =
-         get_byte a w mc.target.config.big_endian ∧
-         (mk_mem (make_funcs (compile_prog pan_code)) s.memory) (byte_align a) = Word w) ∧*)
+          (w2n ((mc.target.get_reg ms mc.ptr_reg) + -1w * (mc.target.get_reg ms mc.len_reg)) DIV (dimindex (:α) DIV 8) − 48)∧ *)
+(*         ((memory (mk_mem (make_funcs (compile_prog pan_code)) s.memory) s.memaddrs) * something) (fun2set (?, mc.prog_addresses)) ∧ *)
+(*         ((memory (mk_mem (make_funcs (compile_prog pan_code)) s.memory) s.memaddrs) * something) (fun2set (M, mc.prog_addresses)) ∧*)
   s.ffi = ffi ∧ mc.target.config.big_endian = s.be ∧
   installed bytes cbspace bitmaps data_sp c'.lab_conf.ffi_names (heap_regs c.stack_conf.reg_names) mc ms ∧
+(*  pan_installed bytes cbspace bitmaps data_sp c'.lab_conf.ffi_names (heap_regs c.stack_conf.reg_names) mc ms (mk_mem (make_funcs (compile_prog pan_code)) s.memory) s.memaddrs ∧*)
   semantics s start ≠ Fail ⇒
   machine_sem (mc:(α,β,γ) machine_config) (ffi:'ffi ffi_state) ms ⊆
   extend_with_resource_limit {semantics (s:('a,'ffi) panSem$state) start}
@@ -316,9 +353,15 @@ Proof
   rename1 ‘compile _ _ = SOME x’>>Cases_on ‘x’>>
   rename1 ‘compile _ _ = SOME (tprog, ltconf)’>>
   first_assum $ irule_at Any>>
+
   qmatch_asmsub_abbrev_tac ‘installed _ _ _ _ _ hp _ _’>>
   Cases_on ‘hp’>>
   gs[targetSemTheory.installed_def]>>
+(*
+  qmatch_asmsub_abbrev_tac ‘installed _ _ _ _ _ hp _ _’>>
+  Cases_on ‘hp’>>
+  gs[targetSemTheory.installed_def]>>
+*)
   gs[backendProofTheory.mc_init_ok_def]>>
   gs[backendProofTheory.backend_config_ok_def]>>
   gs[backendTheory.attach_bitmaps_def]>>
@@ -682,6 +725,7 @@ Proof
   ‘semantics wst0 InitGlobals_location ≠ Fail ⇒
    semantics wst InitGlobals_location ≠ Fail’
     by (rw[]>>gs[])>>
+
   pop_assum $ irule_at Any>>
 
   (* apply word_to_word *)
@@ -724,7 +768,6 @@ Proof
     sst.mdomain = s.memaddrs ∧
     FLOOKUP sst.store CurrHeap = SOME (Word s.base_addr) *)
 
-  (* maybe use init_store_ok? *)
 
   fs[stack_to_labProofTheory.full_make_init_def]>>
   Cases_on ‘opt’>>gs[Abbr ‘lorac’]>>
@@ -884,32 +927,40 @@ Proof
   qabbrev_tac ‘mko = make_init_opt (is_gen_gc c.data_conf.gc_kind) max_heap bitmaps data_sp (λn. (ltconf,[],[])) c.stack_conf.jump mc.target.config.addr_offset sp (fromAList (compile c.data_conf (compile p))) sss’>>
   gs[]>>
   fs[stack_removeProofTheory.make_init_opt_def]>>gs[]>>
+  rename1 ‘mko = SOME ssx’>>
   gs[Abbr ‘mko’]>>
   (***)
 
+  qpat_x_assum ‘_ = sst’ $ assume_tac o GSYM>>
+  gs[]>>
 
+  gs[Abbr ‘sss’]>>
+  gs[stack_removeProofTheory.init_prop_def]>>
 
 
   (***)
-  gs[Abbr ‘sss’]>>
 
-  gs[stack_removeProofTheory.init_prop_def]>>
-  gs[stack_removeProofTheory.init_reduce_def]>>
-  rveq>>gs[]>>
+  gs[FLOOKUP_MAP_KEYS_LINV]>>
+  gs[flookup_fupdate_list]>>
+  gs[REVERSE_DEF, ALOOKUP_APPEND]>>
 
-  (*
-gs[targetSemTheory.good_init_state_def]>>
-gs[asmPropsTheory.target_state_rel_def]>>
-gs[targetSemTheory.target_configured_def]>>
-  *)
+
+  qpat_x_assum ‘Abbrev (labst = _)’ (mp_tac o REWRITE_RULE [markerTheory.Abbrev_def])>>
+  simp[lab_to_targetProofTheory.make_init_def]>>
+  simp[labSemTheory.state_component_equality]>>
+  strip_tac>>gs[]>>
+
+  qpat_x_assum ‘_ = ssx’ (mp_tac o GSYM)>>
+  simp[stack_removeProofTheory.init_reduce_def]>>
+  simp[stackSemTheory.state_component_equality]>>
+
+  strip_tac>>gs[]>>
 
   ‘store_init (is_gen_gc c.data_conf.gc_kind) sp CurrHeap =
    (INR (sp + 2) :'a word + num)’
     by gs[stack_removeTheory.store_init_def, APPLY_UPDATE_LIST_ALOOKUP]>>
   gs[]>>
 
-  gs[flookup_fupdate_list]>>
-  gs[REVERSE_DEF, ALOOKUP_APPEND]>>
   ‘ALL_DISTINCT (MAP FST (MAP
                           (λn.
                              case
@@ -921,46 +972,39 @@ gs[targetSemTheory.target_configured_def]>>
                     stack_removeTheory.store_init_def,
                     APPLY_UPDATE_LIST_ALOOKUP]>>
         gs[APPLY_UPDATE_LIST_ALOOKUP])>>
+  gs[flookup_fupdate_list]>>
+  gs[REVERSE_DEF, ALOOKUP_APPEND]>>
   gs[alookup_distinct_reverse]>>
   gs[stack_removeTheory.store_list_def,
      stack_removeTheory.store_init_def,
      APPLY_UPDATE_LIST_ALOOKUP]>>
 
-  qpat_x_assum ‘FLOOKUP r'.regs _ = SOME _’ mp_tac>>
-  qpat_x_assum ‘FLOOKUP _ _ = SOME (Word w2)’ mp_tac>>
-  qpat_x_assum ‘r'.regs ' _ = Word curr’ mp_tac>>
-
-  simp[FLOOKUP_MAP_KEYS_LINV]>>
-
-  rewrite_tac[flookup_fupdate_list]>>
-  rewrite_tac[REVERSE_DEF, ALOOKUP_APPEND]>>
-  rewrite_tac[stack_removeTheory.store_list_def]>>
-  rewrite_tac[stack_removeTheory.store_init_def]>>
-  simp[APPLY_UPDATE_LIST_ALOOKUP]>>
-
-  gs[FLOOKUP_DEF]>>ntac 3 strip_tac>>
-  gs[]>>
-  ‘labst.regs = (λk. Word (t.regs k))’
-    by (
-    qpat_x_assum ‘Abbrev (labst = _)’ (mp_tac o REWRITE_RULE [markerTheory.Abbrev_def])>>
-    simp[lab_to_targetProofTheory.make_init_def]>>
-    simp[labSemTheory.state_component_equality])>>
-  ‘labst.regs mc.len_reg = Word (t.regs mc.len_reg)’ by gs[]>>
-
   (* need target_state_rel *)
   gs[targetSemTheory.good_init_state_def]>>
   gs[asmPropsTheory.target_state_rel_def]>>
 
-  qpat_x_assum ‘∀i. _ ⇒ mc.target.get_reg ms _ = t.regs _’ assume_tac>>
-  first_assum $ qspec_then ‘mc.len2_reg’ assume_tac>>gs[]>>
-  pop_assum mp_tac>>impl_tac>- 
-   gs[asmTheory.reg_ok_def]>>
+  qpat_assum ‘∀i. _ ⇒ mc.target.get_reg ms _ = t.regs _’ assume_tac>>
+  first_x_assum $ qspec_then ‘mc.len_reg’ assume_tac>>gs[]>>
+  pop_assum mp_tac>>impl_tac>- (* improve *)
+   fs[asmTheory.reg_ok_def]>>
   strip_tac>>gs[]>>
+
+  qpat_x_assum ‘FLOOKUP r'.regs _ = SOME _’ mp_tac>>
+  qpat_x_assum ‘r'.regs ' _ = Word curr’ mp_tac>>
+  simp[FLOOKUP_DEF]>>ntac 2 strip_tac>>
+
+  (* s.base_addr done *)
+
         
   gs[wordSemTheory.theWord_def]>>
 
+
+
+
+
+
   (* ok till here *)
-  (*  ‘r'.memory = labst.mem ∧ r'.mdomain = labst.mem_domain’ by cheat>>*)
+
 
       ‘mc.target.config.reg_count −
        (LENGTH mc.target.config.avoid_regs + 2) = sp + 1 ∧
@@ -975,33 +1019,78 @@ gs[targetSemTheory.target_configured_def]>>
   gs[stack_to_labProofTheory.memory_assumption_def]>>
   gs[targetSemTheory.target_configured_def]>>
 
+  gs[stack_removeProofTheory.state_rel_def]>>
+
   gs[FLOOKUP_MAP_KEYS_LINV]>>
   fs[flookup_fupdate_list]>>
   fs[REVERSE_DEF, ALOOKUP_APPEND]>>
   simp[APPLY_UPDATE_LIST_ALOOKUP]>>
+  gs[BIJ_LINV_INV]>>
 
-  gs[backendProofTheory.heap_regs_def]>>
-  gs[wordSemTheory.theWord_def, stack_removeProofTheory.the_SOME_Word_def]>>
+  qpat_assum ‘∀i. _ ⇒ mc.target.get_reg ms _ = t.regs _’ assume_tac>>
+  first_x_assum $ qspec_then ‘mc.ptr2_reg’ mp_tac>>
+  impl_tac>-fs[asmTheory.reg_ok_def]>>
+  strip_tac>>gs[]>>
+  gs[stack_removeProofTheory.addresses_thm]>>
 
   qpat_x_assum ‘_ + 1 = _’ $ assume_tac o GSYM>>gs[]>>
   qpat_x_assum ‘_ + 2 = _’ $ assume_tac o GSYM>>gs[]>>
   qpat_x_assum ‘sp = _’ $ assume_tac o GSYM>>gs[]>>
 
-  gs[stack_removeProofTheory.state_rel_def]>>
-  gs[wordSemTheory.theWord_def]>>
+  gs[backendProofTheory.heap_regs_def]>>
   fs[stack_removeProofTheory.the_SOME_Word_def]>>
 
-(*  gs[FLOOKUP_MAP_KEYS_LINV]>>*)
-  fs[flookup_fupdate_list]>>
   Cases_on ‘FLOOKUP r'.regs (sp + 1)’>>gs[]>>
   rename1 ‘FLOOKUP _ (sp + 1) = SOME x3’>>
-  Cases_on ‘x3’>>gs[]>>
+  Cases_on ‘x3’>>gs[]>>rename1 ‘_ = SOME (Word x3)’>>
   gs[flookup_thm]>>
   gs[wordSemTheory.theWord_def]>>
 
 
-  ‘w4 = ptr4 ∧ w3 = ptr3’ by cheat>>
-  gs[]>>
+(* up to here, probably *)
+
+
+
+  qpat_x_assum ‘stack_heap_limit_ok _ _’ mp_tac>>
+  simp[stack_removeProofTheory.stack_heap_limit_ok_def]>>
+  simp[stack_removeProofTheory.read_pointers_def]>>
+  simp[FLOOKUP_MAP_KEYS_LINV]>>
+  simp[flookup_fupdate_list]>>
+  simp[REVERSE_DEF, ALOOKUP_APPEND]>>
+  simp[APPLY_UPDATE_LIST_ALOOKUP]>>
+  simp[wordSemTheory.theWord_def]>>
+  strip_tac>>
+  qmatch_asmsub_abbrev_tac ‘stack_heap_limit_ok _ lim’>>
+  Cases_on ‘lim’>>
+  fs[stack_removeProofTheory.get_stack_heap_limit_def]>>
+
+  Cases_on ‘ptr2 + bytes_in_word * n2w max_stack_alloc ≤₊ ptr3 ∧
+              ptr3 ≤₊ ptr4 + -1w * (bytes_in_word * n2w max_stack_alloc)’>>fs[]>>
+  fs[stack_removeProofTheory.get_stack_heap_limit'_def]>>  
+
+  gs[stack_removeProofTheory.stack_heap_limit_ok_def]>>
+
+  gs[flookup_fupdate_list]>>
+  gs[REVERSE_DEF, ALOOKUP_APPEND]>>
+  gs[APPLY_UPDATE_LIST_ALOOKUP]>>
+  gs[wordSemTheory.theWord_def]>>
+
+
+
+
+  simp[stack_removeProofTheory.get_stack_heap_limit''_def]>>
+
+
+
+
+(* up to here?? *)
+
+  gs[wordSemTheory.theWord_def, stack_removeProofTheory.the_SOME_Word_def]>>
+
+
+(*  gs[FLOOKUP_MAP_KEYS_LINV]>>*)
+  fs[flookup_fupdate_list]>>
+
 
 
   qpat_x_assum ‘_ (fun2set _)’ $ mp_tac>>
