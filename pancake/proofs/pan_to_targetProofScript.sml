@@ -313,14 +313,14 @@ Theorem pan_to_target_compile_semantics:
   mc.target.get_reg ms mc.len_reg = s.base_addr ∧
   b
 (*  s.memaddrs =  {w | s.base_addr ≤₊ w ∧ w <₊ mc.target.get_reg ms mc.ptr2_reg} ∧ *)
-  s.memaddrs = addresses (mc.target.get_reg ms mc.len_reg) (FST (read_limits c mc ms)) ∧
+  s.memaddrs = addresses (mc.target.get_reg ms mc.len_reg) (SND (read_limits c mc ms)) ∧
 (*  s.memaddrs = addresses (mc.target.get_reg ms mc.len_reg)
           (w2n ((mc.target.get_reg ms mc.ptr_reg) + -1w * (mc.target.get_reg ms mc.len_reg)) DIV (dimindex (:α) DIV 8) − 48)∧ *)
 (*         ((memory (mk_mem (make_funcs (compile_prog pan_code)) s.memory) s.memaddrs) * something) (fun2set (?, mc.prog_addresses)) ∧ *)
 (*         ((memory (mk_mem (make_funcs (compile_prog pan_code)) s.memory) s.memaddrs) * something) (fun2set (M, mc.prog_addresses)) ∧*)
   s.ffi = ffi ∧ mc.target.config.big_endian = s.be ∧
-  installed bytes cbspace bitmaps data_sp c'.lab_conf.ffi_names (heap_regs c.stack_conf.reg_names) mc ms ∧
-(*  pan_installed bytes cbspace bitmaps data_sp c'.lab_conf.ffi_names (heap_regs c.stack_conf.reg_names) mc ms (mk_mem (make_funcs (compile_prog pan_code)) s.memory) s.memaddrs ∧*)
+(*  installed bytes cbspace bitmaps data_sp c'.lab_conf.ffi_names (heap_regs c.stack_conf.reg_names) mc ms ∧*)
+  pan_installed bytes cbspace bitmaps data_sp c'.lab_conf.ffi_names (heap_regs c.stack_conf.reg_names) mc ms (mk_mem (make_funcs (compile_prog pan_code)) s.memory) s.memaddrs ∧
   semantics s start ≠ Fail ⇒
   machine_sem (mc:(α,β,γ) machine_config) (ffi:'ffi ffi_state) ms ⊆
   extend_with_resource_limit {semantics (s:('a,'ffi) panSem$state) start}
@@ -354,15 +354,16 @@ Proof
   rename1 ‘compile _ _ = SOME x’>>Cases_on ‘x’>>
   rename1 ‘compile _ _ = SOME (tprog, ltconf)’>>
   first_assum $ irule_at Any>>
-
-  qmatch_asmsub_abbrev_tac ‘installed _ _ _ _ _ hp _ _’>>
-  Cases_on ‘hp’>>
-  gs[targetSemTheory.installed_def]>>
 (*
   qmatch_asmsub_abbrev_tac ‘installed _ _ _ _ _ hp _ _’>>
   Cases_on ‘hp’>>
   gs[targetSemTheory.installed_def]>>
 *)
+
+  qmatch_asmsub_abbrev_tac ‘pan_installed _ _ _ _ _ hp _ _ _ _’>>
+  Cases_on ‘hp’>>
+  gs[pan_installed_def]>>
+
   gs[backendProofTheory.mc_init_ok_def]>>
   gs[backendProofTheory.backend_config_ok_def]>>
   gs[backendTheory.attach_bitmaps_def]>>
@@ -2047,6 +2048,40 @@ QED
         irule pan_to_word_every_inst_ok_less>>metis_tac[])>>
 
 
+(* current *)
+Theorem test:
+  full_make_init c.stack_conf c.data_conf max_heap sp
+          mc.target.config.addr_offset bitmaps p labst
+          (set mc.callee_saved_regs) data_sp lorac = (sst,opt) ⇒
+  labst.mem = sst.memory
+Proof
+  fs[stack_to_labProofTheory.full_make_init_def]>>
+  fs[stack_allocProofTheory.make_init_def]>>
+  fs[stack_removeProofTheory.make_init_any_def]>>
+  ‘opt ≠ NONE’ by cheat>>fs[]>>
+  strip_tac>>fs[]>>
+  Cases_on ‘opt’>>gs[]>>
+  fs[stack_removeProofTheory.make_init_opt_def]>>
+  ‘sst.memory = x.memory’ by fs[stackSemTheory.state_component_equality]>>
+  fs[]>>
+  FULL_CASE_TAC>>gs[]>>
+  Cases_on ‘q’>>gs[]>>
+  gs[stack_removeProofTheory.init_reduce_def]>>
+  ‘x.memory = r.memory’ by fs[stackSemTheory.state_component_equality]>>
+  gs[]>>
+  gs[stack_namesProofTheory.make_init_def]>>
+  gs[stack_to_labProofTheory.make_init_def]>>
+  cheat
+QED
+
+val memory_fun2set_IMP_read = Q.prove(
+  `(memory m d * p) (fun2set (m1,d1)) /\ a IN d ==>
+  a IN d1 /\ m1 a = m a`,
+  simp [Once set_sepTheory.STAR_def,set_sepTheory.SPLIT_EQ,
+        stack_removeProofTheory.memory_def]
+  \\ full_simp_tac(srw_ss())[set_sepTheory.fun2set_def,SUBSET_DEF,PULL_EXISTS]);
+
+
 
 Theorem pan_to_target_compile_semantics:
   pan_to_target$compile_prog c pan_code = SOME (bytes, bitmaps, c') ∧
@@ -2060,14 +2095,20 @@ Theorem pan_to_target_compile_semantics:
   FDOM s.eshapes = FDOM ((get_eids pan_code):mlstring |-> 'a word) ∧
   backend_config_ok c ∧ lab_to_targetProof$mc_conf_ok mc ∧
   mc_init_ok c mc ∧
-  s.memaddrs = addresses (mc.target.get_reg ms mc.len_reg) (FST (read_limits c mc ms)) ∧
+  (*
+  adj_ptr2 = (mc.target.get_reg ms mc.len_reg) + bytes_in_word * n2w max_stack_alloc ∧
+  adj_ptr4 = (mc.target.get_reg ms mc.len2_reg) - bytes_in_word * n2w max_stack_alloc ∧
+  adj_ptr2 ≤₊ (mc.target.get_reg ms mc.ptr2_reg) ∧
+  (mc.target.get_reg ms mc.ptr2_reg) ≤₊ adj_ptr4 ∧*)
+(*  s.memaddrs = addresses (mc.target.get_reg ms mc.len_reg) (SND (read_limits c mc ms)) ∧*)
+  s.memaddrs = addresses (mc.target.get_reg ms mc.len_reg) (w2n ((mc.target.get_reg ms mc.ptr2_reg) + -1w * s.base_addr) DIV (dimindex (:α) DIV 8) − 48) ∧
   mc.target.get_reg ms mc.len_reg = s.base_addr ∧
 (*  (∀a. isWord ((mk_mem (make_funcs (compile_prog pan_code)) s.memory) a)) ∧*)
 (*  s.memaddrs = addresses (mc.target.get_reg ms mc.len_reg)
           (w2n ((mc.target.get_reg ms mc.ptr_reg) + -1w * (mc.target.get_reg ms mc.len_reg)) DIV (dimindex (:α) DIV 8) − 48)∧ *)
   s.ffi = ffi ∧ mc.target.config.big_endian = s.be ∧
-  installed bytes cbspace bitmaps data_sp c'.lab_conf.ffi_names (heap_regs c.stack_conf.reg_names) mc ms ∧
-(*  pan_installed bytes cbspace bitmaps data_sp c'.lab_conf.ffi_names (heap_regs c.stack_conf.reg_names) mc ms (mk_mem (make_funcs (compile_prog pan_code)) s.memory) s.memaddrs ∧*)
+(*  installed bytes cbspace bitmaps data_sp c'.lab_conf.ffi_names (heap_regs c.stack_conf.reg_names) mc ms ∧*)
+  pan_installed bytes cbspace bitmaps data_sp c'.lab_conf.ffi_names (heap_regs c.stack_conf.reg_names) mc ms (mk_mem (make_funcs (compile_prog pan_code)) s.memory) s.memaddrs ∧
   semantics s start ≠ Fail ⇒
   machine_sem (mc:(α,β,γ) machine_config) (ffi:'ffi ffi_state) ms ⊆
   extend_with_resource_limit {semantics (s:('a,'ffi) panSem$state) start}
@@ -2118,8 +2159,8 @@ Proof
   gs[backendProofTheory.mc_init_ok_def]>>
   gs[backendTheory.attach_bitmaps_def]>>
   gs[backendProofTheory.backend_config_ok_def]>>
-  (*  gs[pan_installed_def]>>gs[]>>*)
-  gs[targetSemTheory.installed_def]>>gs[]>>
+  gs[pan_installed_def]>>gs[]>>
+(*  gs[targetSemTheory.installed_def]>>gs[]>>*)
 
   ‘compiler_oracle_ok sorac ltconf.labels (LENGTH bytes)
    mc.target.config mc.ffi_names’
@@ -2674,6 +2715,8 @@ Proof
   qpat_x_assum ‘_ = x’ (assume_tac o GSYM)>>fs[]>>
   fs[stack_removeProofTheory.init_reduce_def]>>
 
+
+
   gs[FLOOKUP_MAP_KEYS_LINV]>>
   gs[flookup_fupdate_list]>>
   gs[REVERSE_DEF, ALOOKUP_APPEND]>>
@@ -2724,10 +2767,6 @@ Proof
     gs[flookup_thm]>>
     gs[wordSemTheory.theWord_def]>>
 
-
-    gs[backendProofTheory.read_limits_def,
-       stack_removeProofTheory.read_pointers_def]>>
-
   gs[FLOOKUP_MAP_KEYS_LINV]>>
       gs[flookup_fupdate_list]>>
   gs[REVERSE_DEF, ALOOKUP_APPEND]>>
@@ -2739,11 +2778,37 @@ Proof
     first_x_assum $ qspec_then ‘mc.len2_reg’ mp_tac>>
   impl_tac>-fs[asmTheory.reg_ok_def]>>
     ntac 2 strip_tac>>gs[]>>
-    qmatch_goalsub_abbrev_tac ‘FST lim’>>
-    Cases_on ‘lim’>>rename1 ‘FST (stk, hp)’>>gs[]>>
 
+    ‘c''' = w3’ by cheat >> gs[]>>
 
     fs[stack_removeProofTheory.the_SOME_Word_def]>>
+    qpat_x_assum ‘(memory _ _ * _ * _ * _ * _) (fun2set _)’ mp_tac>>
+    ONCE_REWRITE_TAC[GSYM set_sepTheory.STAR_ASSOC]>>
+    ONCE_REWRITE_TAC[GSYM set_sepTheory.STAR_ASSOC]>>
+    ONCE_REWRITE_TAC[GSYM set_sepTheory.STAR_ASSOC]>>
+    strip_tac>>
+    drule memory_fun2set_IMP_read>>
+
+
+
+
+
+
+(* up to here *)
+
+(*    ‘sss.memory = m’ by cheat>>fs[]>> *)
+
+
+
+    gs[backendProofTheory.read_limits_def,
+       stack_removeProofTheory.read_pointers_def]>>
+
+    qmatch_goalsub_abbrev_tac ‘SND lim’>>
+    Cases_on ‘lim’>>rename1 ‘SND (stk, hp)’>>gs[]>>
+
+    ‘sss.memory = sst.memory’ by cheat>>fs[]>>
+    
+
     fs[stack_removeProofTheory.is_SOME_Word_def]>>
     fs[stack_removeProofTheory.stack_heap_limit_ok_def]>>
 
