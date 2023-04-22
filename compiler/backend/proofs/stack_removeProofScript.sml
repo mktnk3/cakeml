@@ -2925,8 +2925,8 @@ Theorem init_code_thm:
          FLOOKUP t.regs (k+2) = SOME (Word w2) ∧
          FLOOKUP s.regs 4 = SOME (Word w4) ∧ byte_aligned w4 ∧ w2 <+ w4 ∧
          FLOOKUP t.regs k = SOME (Word (w4 - bytes_in_word)) ∧
-         (w2 + n2w max_stack_alloc * bytes_in_word <+ w3 ∧
-          w3 <+ w4 - n2w max_stack_alloc * bytes_in_word ∧
+         (w2 + n2w max_stack_alloc * bytes_in_word ≤₊ w3 ∧
+          w3 ≤₊ w4 - n2w max_stack_alloc * bytes_in_word ∧
           w2n (-1w * w2 + w3) ≤ max_heap * w2n (bytes_in_word:'a word) ∧
           (w2n (bytes_in_word:'a word)) * max_heap < dimword (:α) ⇒
           FLOOKUP t.regs (k+1) =
