@@ -1602,8 +1602,8 @@ Proof
    (* memory domain done *)
 
   (* memory shift *)
-  ‘fun2set (wst0.memory, wst0.mdomain) =
-   fun2set (mk_mem (make_funcs (compile_prog pan_code)) s.memory,wst0.mdomain)’
+  ‘fun2set (wst0.memory, s.memaddrs) =
+   fun2set (mk_mem (make_funcs (compile_prog pan_code)) s.memory,s.memaddrs)’
     by (gs[Abbr ‘wst0’, Abbr ‘wst’]>>
         gs[word_to_stackProofTheory.make_init_def]>>
         gs[stack_removeProofTheory.init_reduce_def]>>gvs[]>>
