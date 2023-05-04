@@ -1488,9 +1488,8 @@ Proof
    disch_then $ qspec_then ‘gck’ assume_tac>>gs[]>>
 (***)
 
-  ‘sss.memory = ssx.memory ∧ sss.mdomain = ssx.mdomain’ by cheat>>
+  ‘fun2set (sss.memory,s.memaddrs) = fun2set (ssx.memory,s.memaddrs) ∧ sss.mdomain = ssx.mdomain’ by cheat>>
 
-(*  ‘theWord (sss.regs ' (sp + 2)) = s.base_addr ∧*)
   ‘sss.regs ' (sp + 2) = Word (s.base_addr) ∧
    w2n (theWord (sss.regs ' (sp + 1)) +
         -1w * theWord (sss.regs ' (sp + 2))) DIV
@@ -1609,8 +1608,8 @@ Proof
         gs[word_to_stackProofTheory.make_init_def]>>
         gs[stack_removeProofTheory.init_reduce_def]>>gvs[]>>
         gs[Abbr ‘ssx’, Abbr ‘labst’]>>
-        rewrite_tac[lab_to_targetProofTheory.make_init_def]>>
-        simp[wordSemTheory.theWord_def]>>
+        rewrite_tac[lab_to_targetProofTheory.make_init_def]>>simp[]>>
+        gs[wordSemTheory.theWord_def]>>
         gs[set_sepTheory.fun2set_eq])>>
 
   ‘∀m m' a b c.
