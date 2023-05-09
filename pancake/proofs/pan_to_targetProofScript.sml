@@ -299,73 +299,71 @@ QED
 
 (* current *)
 Theorem fun2set_update_eq[simp]:
-  fun2set (m, md) = fun2set (m', md') ∧ x ∈ md ∧ x ∈ md' ⇒
-  fun2set (m⦇x ↦ a⦈, md) = fun2set (m'⦇x ↦ a⦈, md')
+  fun2set (m, md) = fun2set (m', md) ⇒
+  fun2set (m⦇x ↦ a⦈, md) = fun2set (m'⦇x ↦ a⦈, md)
 Proof
-  rw[set_sepTheory.fun2set_def]>>gs[EXTENSION,EQ_IMP_THM]>>
-  rw[UPDATE_def]>>IF_CASES_TAC>>gs[]
-  >- (first_x_assum $ qspec_then ‘(a', m a')’ assume_tac>>gs[])>>
-  first_x_assum $ qspec_then ‘(a', m' a')’ assume_tac>>gs[]
+  strip_tac>>
+  gs[set_sepTheory.fun2set_eq,UPDATE_def]>>
+  IF_CASES_TAC>>gs[]
 QED        
 
 Theorem get_var_const_memory[simp]:
-   wordSem$get_var x (y with memory := m) = get_var x y
+  wordSem$get_var x (y with memory := m) = get_var x y
 Proof
   gs[wordSemTheory.get_var_def]
 QED
 
 Theorem set_var_const_memory[simp]:
-   wordSem$set_var v x (y with memory := m) = (set_var v x y) with memory := m
+  wordSem$set_var v x (y with memory := m) = (set_var v x y) with memory := m
 Proof
   gs[wordSemTheory.set_var_def]
 QED
 
 Theorem unset_var_const_memory[simp]:
-   wordSem$unset_var v (y with memory := m) = (unset_var v y) with memory := m
+  wordSem$unset_var v (y with memory := m) = (unset_var v y) with memory := m
 Proof
   gs[wordSemTheory.unset_var_def]
 QED
 
 Theorem get_vars_const_memory[simp]:
-   wordSem$get_vars x (y with memory := m) = get_vars x y
+  wordSem$get_vars x (y with memory := m) = get_vars x y
 Proof
   Induct_on`x`>>srw_tac[][wordSemTheory.get_vars_def]
 QED
 
 Theorem set_vars_const_memory[simp]:
-   wordSem$set_vars vs xs (y with memory := m) = (set_vars vs xs y) with memory := m
+  wordSem$set_vars vs xs (y with memory := m) = (set_vars vs xs y) with memory := m
 Proof
   Induct_on`xs`>>srw_tac[][wordSemTheory.set_vars_def]
 QED
 
 Theorem get_var_imm_const_memory[simp]:
-   wordSem$get_var_imm ri (s with memory := m) = get_var_imm ri s
+  wordSem$get_var_imm ri (s with memory := m) = get_var_imm ri s
 Proof
   Cases_on ‘ri’>>gs[wordSemTheory.get_var_imm_def]
 QED
 
 Theorem mem_load_const_memory[simp]:
-  fun2set (m,s.mdomain) = fun2set (s.memory,s.mdomain) ⇒
-   wordSem$mem_load ad (s with memory := m) = mem_load ad s
+  fun2set (s.memory,s.mdomain) = fun2set (m,s.mdomain) ⇒
+  wordSem$mem_load ad (s with memory := m) = mem_load ad s
 Proof
-  strip_tac>>gs[wordSemTheory.mem_load_def]>>
-  CASE_TAC>>gs[set_sepTheory.fun2set_def,EXTENSION,EQ_IMP_THM]>>
-  first_x_assum $ qspec_then ‘(ad, m ad)’ assume_tac>>gs[]
+  strip_tac>>gs[wordSemTheory.mem_load_def]
 QED
 
 Theorem mem_store_const_memory[simp]:
-  fun2set (m,s.mdomain) = fun2set (s.memory,s.mdomain) ⇒
+  fun2set (s.memory,s.mdomain) = fun2set (m,s.mdomain) ⇒
   (mem_store ad w s = NONE ⇔ wordSem$mem_store ad w (s with memory := m) = NONE) ∧
-  (∀x. mem_store ad w s = SOME x ⇒
-       wordSem$mem_store ad w (s with memory := m) = SOME (s with memory := m⦇ad↦w⦈))
+  (mem_store ad w s = SOME (s with memory:= s.memory⦇ad↦w⦈) ⇔
+     wordSem$mem_store ad w (s with memory := m) =
+     SOME (s with memory := m⦇ad↦w⦈))
 Proof
-  strip_tac>>gs[wordSemTheory.mem_store_def]>>metis_tac[]
+  strip_tac>>gs[wordSemTheory.mem_store_def]
 QED
 
 Theorem word_exp_const_memory[simp]:
   ∀s exp m.
-     fun2set (s.memory,s.mdomain) = fun2set (m, s.mdomain) ⇒
-     wordSem$word_exp (s with memory := m) exp = word_exp s exp
+  fun2set (s.memory,s.mdomain) = fun2set (m, s.mdomain) ⇒
+  wordSem$word_exp (s with memory := m) exp = word_exp s exp
 Proof
   recInduct wordSemTheory.word_exp_ind>>rw[wordSemTheory.word_exp_def]>>
   fs[PULL_FORALL]>>fs[Once SWAP_FORALL_THM]>>
@@ -377,40 +375,37 @@ Proof
         gs[wordSemTheory.the_words_def])>>gs[]
 QED
 
-Theorem mem_load_byte_aux_const_memory:
-     fun2set (m,dm) = fun2set (m',dm) ⇒
-     wordSem$mem_load_byte_aux m' dm be w = mem_load_byte_aux m dm be w 
+Theorem mem_load_byte_aux_const_memory[simp]:
+  fun2set (m,dm) = fun2set (m',dm) ⇒
+  wordSem$mem_load_byte_aux m' dm be w =
+  mem_load_byte_aux m dm be w 
 Proof
   strip_tac>>gs[wordSemTheory.mem_load_byte_aux_def]>>
-  gs[EXTENSION,set_sepTheory.fun2set_def]>>
-  pop_assum $ qspec_then ‘(byte_align w, m (byte_align w))’ assume_tac>>
-  gs[]>>
+  gs[set_sepTheory.fun2set_eq]>>
+  first_x_assum $ qspec_then ‘byte_align w’ assume_tac>>
   rpt (CASE_TAC>>gs[])
 QED
 
 Theorem mem_store_byte_aux_const_memory:
-     fun2set (m,dm) = fun2set (m',dm) ⇒
-     (mem_store_byte_aux m dm be w b = NONE ⇔ mem_store_byte_aux m' dm be w b = NONE) ∧
-     (fun2set (THE (wordSem$mem_store_byte_aux m' dm be w b),dm) =
-        fun2set (THE (mem_store_byte_aux m dm be w b), dm))
+  fun2set (m,dm) = fun2set (m',dm) ⇒
+  (mem_store_byte_aux m dm be w b = NONE ⇔
+     mem_store_byte_aux m' dm be w b = NONE) ∧
+  (fun2set (THE (wordSem$mem_store_byte_aux m' dm be w b),dm) =
+   fun2set (THE (mem_store_byte_aux m dm be w b), dm))
 Proof
-  strip_tac>>gs[set_sepTheory.fun2set_def]>>
-  gs[wordSemTheory.mem_store_byte_aux_def]>>
-  Cases_on ‘byte_align w ∈ dm’>>gs[]
-  >- (‘m' (byte_align w) = m (byte_align w)’
-        by (gs[EXTENSION]>>
-            first_x_assum $ qspec_then ‘(byte_align w, m (byte_align w))’ assume_tac>>
-            gs[])>>gs[]>>
-      CASE_TAC>>
-      gs[GSYM set_sepTheory.fun2set_def]>>
-      srw_tac[ETA_ss][])>>
-     CASE_TAC>>CASE_TAC
+  gs[set_sepTheory.fun2set_eq]>>rpt strip_tac>>
+  gs[wordSemTheory.mem_store_byte_aux_def]
+  >- (first_x_assum $ qspec_then ‘byte_align w’ assume_tac>>
+      rpt (CASE_TAC>>gs[]))>>
+  first_assum $ qspec_then ‘a’ assume_tac>>
+  first_x_assum $ qspec_then ‘byte_align w’ assume_tac>>
+  rpt (CASE_TAC>>gs[])>>gs[UPDATE_def]>>IF_CASES_TAC>>gs[]
 QED
 
 Theorem read_bytearray_const_memory[simp]:
-     fun2set (m,dm) = fun2set (m',dm) ⇒
-     misc$read_bytearray ptr len (mem_load_byte_aux m dm be) =
-     read_bytearray ptr len (mem_load_byte_aux m' dm be)
+  fun2set (m,dm) = fun2set (m',dm) ⇒
+  misc$read_bytearray ptr len (mem_load_byte_aux m dm be) =
+  read_bytearray ptr len (mem_load_byte_aux m' dm be)
 Proof
   strip_tac>>
   imp_res_tac mem_load_byte_aux_const_memory>>
@@ -420,18 +415,18 @@ QED
 
 Theorem write_bytearray_const_memory[simp]:
   ∀ls ptr m.
-     fun2set (m,dm) = fun2set (m',dm) ⇒
-     fun2set (wordSem$write_bytearray ptr ls m dm be, dm) =
-     fun2set (write_bytearray ptr ls m' dm be, dm)
+  fun2set (m,dm) = fun2set (m',dm) ⇒
+  fun2set (wordSem$write_bytearray ptr ls m dm be, dm) =
+  fun2set (write_bytearray ptr ls m' dm be, dm)
 Proof
   Induct>>gs[wordSemTheory.write_bytearray_def]>>
   rpt strip_tac>>gs[]>>
   first_x_assum $ qspecl_then [‘ptr+1w’, ‘m’] assume_tac>>rfs[]>>
   drule mem_store_byte_aux_const_memory>>strip_tac>>
   first_x_assum $ qspecl_then [‘ptr’, ‘be’, ‘h’] assume_tac>>fs[]>>
-  CASE_TAC>>fs[]>>CASE_TAC>>fs[]
+  rpt (CASE_TAC>>fs[])
 QED
-
+(*
 Theorem mem_store_byte_aux_const_memory_NONE[simp]:
      fun2set (m,dm) = fun2set (m',dm) ⇒
      (wordSem$mem_store_byte_aux m' dm be w b = NONE ⇔
@@ -470,36 +465,54 @@ Proof
                     wordSemTheory.get_var_def,
                     wordSemTheory.set_var_def])
 QED
-
+*)
+(*
 Theorem inst_const_memory:
   fun2set (s.memory,s.mdomain) = fun2set (m, s.mdomain) ⇒
   (inst i s = NONE ⇔ wordSem$inst i (s with memory := m) = NONE) ∧
   (∀x. inst i s = SOME x ⇒
-       (∃m'. THE (wordSem$inst i (s with memory := m)) = x with memory := m' ∧
-             fun2set (m', x.mdomain) = fun2set (x.memory, x.mdomain)))
+       (∃m'. THE (wordSem$inst i (s with memory := m)) =
+             x with memory := m' ∧
+             fun2set (m',x.mdomain) = fun2set (x.memory,x.mdomain)))
+Proof
+*)
+Theorem inst_const_memory:
+  fun2set (s.memory,s.mdomain) = fun2set (m, s.mdomain) ⇒
+  (inst i s = NONE ⇔ wordSem$inst i (s with memory := m) = NONE) ∧
+  (∀x. inst i s = SOME x ⇒
+       (∃m'. THE (wordSem$inst i (s with memory := m)) =
+             x with memory := m' ∧
+             fun2set (m',x.mdomain) = fun2set (x.memory,x.mdomain)))
 Proof
   strip_tac>>
-  Cases_on ‘i’>>gs[wordSemTheory.inst_def]
+  Induct_on ‘i’>>gs[wordSemTheory.inst_def]
   >- metis_tac[]
-  >- (gs[wordSemTheory.assign_def, wordSemTheory.set_var_def]>>
-      CASE_TAC>>gs[word_exp_const_memory]>>metis_tac[])
-  >- (rpt (CASE_TAC>>
-      gs[wordSemTheory.assign_def,word_exp_const_memory,
-         wordSemTheory.set_var_def,get_vars_const_memory])>>
-      metis_tac[])
-  >- (rpt (CASE_TAC>>gs[])>>
-      gs[wordSemTheory.set_var_def]>>
-      imp_res_tac mem_store_byte_aux_const_memory>>gs[]>>
+  >- (rpt strip_tac>>
+      gs[wordSemTheory.assign_def, wordSemTheory.set_var_def]>>
+      CASE_TAC>>gs[word_exp_const_memory]>>gvs[]>>metis_tac[])
+  >- (rpt strip_tac>>
+      gs[wordSemTheory.assign_def, wordSemTheory.set_var_def]>>
+      rpt (CASE_TAC>>fs[])>>
+      gs[]>>rpt (FULL_CASE_TAC>>gs[])>>gvs[]>>metis_tac[])
+  >- (rpt strip_tac>>
+      rpt (CASE_TAC>>gs[])>>
       imp_res_tac mem_load_byte_aux_const_memory>>gs[]>>
-      first_x_assum $ qspecl_then [‘c''’, ‘s.be’, ‘w2w c’] assume_tac>>
-      gs[]>>TRY (metis_tac[])>>
-      gvs[wordSemTheory.mem_store_def]>>
+      imp_res_tac mem_store_byte_aux_const_memory>>gs[]>>
+      imp_res_tac mem_store_const_memory>>gs[]>>
+      imp_res_tac mem_load_const_memory>>gs[]>>
+      ntac 2 $ first_x_assum $ qspecl_then [‘c''’, ‘s.be’, ‘w2w c’] assume_tac>>
+      gs[wordSemTheory.set_var_def]>>
+      gs[wordSemTheory.mem_store_def]>>
+      rpt (FULL_CASE_TAC>>gs[])>>gvs[]>>TRY (metis_tac[])>>
       irule_at Any fun2set_update_eq>>gs[]>>metis_tac[])>>
+  rpt strip_tac>>
   gs[wordSemTheory.get_fp_var_def,
      wordSemTheory.set_fp_var_def,
      wordSemTheory.get_var_def,
      wordSemTheory.set_var_def]>>
-  rpt (CASE_TAC>>gs[])>>metis_tac[]
+  rpt (CASE_TAC>>gs[])>>gvs[]>>
+  rpt (FULL_CASE_TAC>>gs[])>>gvs[]>>
+  metis_tac[]
 QED
 
 Theorem const_writes_const_memory:
@@ -521,69 +534,141 @@ Proof
   first_assum irule
 QED
 
+
+(* gc *)
+Theorem memcpy_memory_swap:
+  ∀a v w m dm m' p m1 c p' m1' c'.
+  fun2set (m,dm) = fun2set (m',dm) ∧ v ∈ dm ∧
+  memcpy a v w m dm = (p, m1, c) ∧
+  memcpy a v w m' dm = (p', m1', c') ⇒
+  fun2set (m1,dm) = fun2set (m1',dm) ∧ p = p' ∧ c = c'
+Proof
+  recInduct word_gcFunctionsTheory.memcpy_ind>>
+  ntac 2 (rpt gen_tac>>strip_tac)>>
+  ntac 2 (pop_assum $ mp_tac o PURE_ONCE_REWRITE_RULE[word_gcFunctionsTheory.memcpy_def])>>
+  IF_CASES_TAC>>ntac 2 strip_tac>>gvs[]>>
+  rpt (pairarg_tac>>gs[])>>
+  Cases_on ‘b ∈ dm’>>gs[]
+  >- (last_x_assum irule>>
+      imp_res_tac fun2set_update_eq>>
+      first_x_assum $ qspecl_then [‘b’, ‘m a’] assume_tac>>
+      metis_tac[set_sepTheory.fun2set_eq])>>
+      gvs[]>>
+      first_x_assum $ qspecl_then [‘m'⦇b ↦ m' a⦈’, ‘b1’, ‘m1'’, ‘c1’] assume_tac>>
+      ‘fun2set (m⦇b ↦ m a⦈,dm) = fun2set (m'⦇b ↦ m' a⦈,dm)’
+    by (gs[set_sepTheory.fun2set_eq]>>rpt strip_tac>>
+        rw[UPDATE_def]>>gs[])>>gs[]
+
+      gvs[]>>cheat)>>
+  first_x_assum $ qspecl_then [‘m'⦇b ↦ m' a⦈’, ‘p'’, ‘m1'’, ‘c1’] assume_tac>>
+      gvs[]>>
+      ‘fun2set (m⦇b ↦ m a⦈,dm) = fun2set (m'⦇b ↦ m' a⦈,dm)’
+    by (gs[set_sepTheory.fun2set_eq]>>rpt strip_tac>>
+        rw[UPDATE_def]>>gs[])>>gs[]
+QED
+)>>
+  
+     
+       first_x_assum $ qspec_then ‘a’ assume_tac>>gs[])
+
+  rpt (pairarg_tac>>gvs[])>>
+  first_x_assum $ qspecl_then [‘m'⦇b ↦ m' a⦈’, ‘b1’, ‘m1'’, ‘c1’] assume_tac>>
+  Cases_on ‘a ∈ dm’>>gs[]>>
+  imp_res_tac fun2set_update_eq>>
+  first_x_assum $ qspecl_then [‘b’, ‘m a’] assume_tac
+  >- (last_x_assum mp_tac>>
+      rewrite_tac[Once set_sepTheory.fun2set_eq]>>strip_tac>>
+      pop_assum $ qspecl_then [‘a’] assume_tac>>gs[])>>
+  gs[set_sepTheory.fun2set_eq,UPDATE_def]p
+               
+
+  pop_assum irule
+
+  first_x_assum $ drule_at (Pos last)>>
+  strip_tac>>
+  pop_assum 
+  
+        
+  simp[Once word_gcFunctionsTheory.memcpy_def]
+  >- (simp[Once word_gcFunctionsTheory.memcpy_def]>>
+      ntac 3 strip_tac>>
+      ntac 11 strip_tac>>strip_tac>>
+      
+
+QED
+
+Theorem word_gc_move_roots_memory_swap:
+  ∀conf a v w z m b m' x0 x1 x2 x3 x4 y0 y1 y2 y3 y4.
+  fun2set (m,dm) = fun2set (m',dm) ∧
+   word_gc_move_roots conf (a,v,w,z,m,b) = (x0,x1,x2,x3,x4) ∧
+   word_gc_move_roots conf (a,v,w,z,m',b) = (y0,y1,y2,y3,y4) ⇒
+   fun2set (x3,dm) = fun2set (y3,dm) ∧ x0 = y0 ∧ x1 = y1 ∧ x2 = y2 ∧ x4 = y4
+Proof
+  recInduct word_gcFunctionsTheory.word_gc_move_roots_ind>>
+  rw[word_gcFunctionsTheory.word_gc_move_roots_def]>>gs[]>>
+  rpt (pairarg_tac>>gs[])>>gvs[]>>
+
+
+  cheat
+QED
+
+Theorem word_gc_move_memory_swap:
+  ∀conf a v w z m b m' x0 x1 x2 x3 x4 y0 y1 y2 y3 y4.
+         fun2set (m,dm) = fun2set (m',dm) ∧
+         (∀x. x ∈ dm ⇒ isWord (m x)) ∧
+         ptr_to_addr conf z (theWord a) ∈ dm ∧
+         word_gc_move conf (a,v,w,z,m,dm) = (x0,x1,x2,x3,x4) ∧
+         word_gc_move conf (a,v,w,z,m',dm) = (y0,y1,y2,y3,y4) ⇒
+         fun2set (x3,dm) = fun2set (y3,dm) ∧ x0 = y0 ∧ x1 = y1 ∧ x2 = y2 ∧ x4 = y4
+Proof
+  recInduct word_gcFunctionsTheory.word_gc_move_ind>>
+
+  ntac 19 strip_tac>>
+  Cases_on ‘a’>>
+  gs[word_gcFunctionsTheory.word_gc_move_def]>>gs[]>>
+  rpt (pairarg_tac>>gs[])>>gvs[wordSemTheory.theWord_def]>>
+  rpt (FULL_CASE_TAC>>gvs[])>> gs[set_sepTheory.fun2set_eq]
+  cheat
+QED
+
+Theorem word_gc_move_loop_memory_swap:
+  fun2set (m,dm) = fun2set (m',dm) ⇒
+  (∀x y. word_gc_move_loop (dimword (:'a)) conf (a,v,w,z,m,b,c) = x ∧
+         word_gc_move_loop (dimword (:'a)) conf (a,v,w,z,m',b,c) = y ⇒
+         fun2set (FST (SND (SND x)),dm) = fun2set (FST (SND (SND y)),dm))
+Proof
+  cheat
+QED
+
+Theorem word_full_gc_memory_swap:
+  fun2set (m,dm) = fun2set (m',dm) ⇒
+  (∀x y. word_full_gc conf (a,w,z,m,b) = x ∧
+         word_full_gc conf (a,w,z,m',b) = y ⇒
+         fun2set (FST (SND (SND (SND x))),dm) = fun2set (FST (SND (SND (SND y))),dm))
+Proof
+  rpt strip_tac>>
+  gs[word_gcFunctionsTheory.word_full_gc_def]>>
+  rpt (pairarg_tac>>gs[])>>gvs[]>>
+  imp_res_tac word_gc_move_roots_memory_swap>>gs[]>>
+  imp_res_tac word_gc_move_loop_memory_swap>>gs[]
+QED
+
+(* memory update lemma for evaluate *)
 Theorem memory_swap_lemma:
   ∀prog st res rst m.
-     wordSem$evaluate (prog, (st:(α,β,γ) wordSem$state)) = (res, rst) ∧
-     (∀m m' a b c.
-       (fun2set (m, st.mdomain) = fun2set (m', st.mdomain)) ⇒
-       st.gc_fun (a, m, b, c) = st.gc_fun (a, m', b, c))  ∧
-     fun2set (st.memory, st.mdomain) = fun2set (m, st.mdomain) ⇒
+       wordSem$evaluate (prog, (st:(α,β,γ) wordSem$state)) = (res, rst) ∧
+       fun2set (st.memory, st.mdomain) = fun2set (m, st.mdomain) ∧
+       no_alloc_code st.code ∧ no_install_code st.code ∧
+       no_alloc prog ∧ no_install prog ⇒
      (∃m'. evaluate (prog, st with memory := m) = (res, rst with memory := m') ∧
            fun2set (rst.memory, rst.mdomain) = fun2set (m', rst.mdomain))
 Proof
   recInduct wordSemTheory.evaluate_ind >>srw_tac[][wordSemTheory.evaluate_def]>>full_simp_tac(srw_ss())[wordSemTheory.call_env_def]
   >- metis_tac[]
   >- (CASE_TAC>>gs[wordSemTheory.get_var_def]
-      >- metis_tac[]>>
-      CASE_TAC>>gs[]
-      >- ( (* alloc *)
-       res_tac>>last_x_assum kall_tac>>
-       gs[wordSemTheory.alloc_def]>>
-       rpt (CASE_TAC>>gvs[])
-       >- metis_tac[]
-       >- (FULL_CASE_TAC>>gvs[]
-           >- metis_tac[]>>
-           gs[wordSemTheory.set_store_def,wordSemTheory.enc_stack_def,
-              wordSemTheory.push_env_def]>>
-           pairarg_tac>>gs[wordSemTheory.gc_def])
-       >- (FULL_CASE_TAC>>gvs[wordSemTheory.flush_state_def]>>
-           gs[wordSemTheory.set_store_def,
-              wordSemTheory.push_env_def]>>
-           pairarg_tac>>gs[wordSemTheory.gc_def]>>
-           rpt (FULL_CASE_TAC>>gvs[wordSemTheory.pop_env_def])>>
-           gs[wordSemTheory.dec_stack_def,wordSemTheory.enc_stack_def]>>
-           FULL_CASE_TAC>>gs[])
-       >- (FULL_CASE_TAC>>gvs[wordSemTheory.flush_state_def]>>
-           gs[wordSemTheory.set_store_def,
-              wordSemTheory.push_env_def]>>
-           pairarg_tac>>gs[wordSemTheory.gc_def]>>
-           rpt (FULL_CASE_TAC>>gvs[wordSemTheory.pop_env_def])>>
-           gs[wordSemTheory.dec_stack_def,wordSemTheory.enc_stack_def]>>
-           FULL_CASE_TAC>>gs[]>>metis_tac[])
-       >- (FULL_CASE_TAC>>gvs[wordSemTheory.flush_state_def]>>
-           gs[wordSemTheory.set_store_def,
-              wordSemTheory.push_env_def]>>
-           pairarg_tac>>gs[wordSemTheory.gc_def]>>
-           rpt (FULL_CASE_TAC>>gvs[wordSemTheory.pop_env_def])>>
-           gs[wordSemTheory.dec_stack_def,wordSemTheory.enc_stack_def]>>
-           FULL_CASE_TAC>>gs[]>>metis_tac[])
-       >- (FULL_CASE_TAC>>gvs[wordSemTheory.set_store_def,
-                              wordSemTheory.push_env_def]>>
-           pairarg_tac>>gs[wordSemTheory.gc_def]>>
-           rpt (FULL_CASE_TAC>>gvs[wordSemTheory.pop_env_def])>>
-           gs[wordSemTheory.dec_stack_def,wordSemTheory.enc_stack_def]>>
-           FULL_CASE_TAC>>gs[]>>metis_tac[])
-       >- (FULL_CASE_TAC>>gvs[wordSemTheory.set_store_def,
-                              wordSemTheory.flush_state_def,
-                              wordSemTheory.push_env_def]>>
-           pairarg_tac>>gs[wordSemTheory.gc_def]>>
-           rpt (FULL_CASE_TAC>>gvs[wordSemTheory.pop_env_def])>>
-           gs[wordSemTheory.dec_stack_def,wordSemTheory.enc_stack_def]>>
-           FULL_CASE_TAC>>gs[]>>metis_tac[])>>
-       metis_tac[])>>
-      metis_tac[])
-  >- (res_tac>>qpat_x_assum ‘∀m m' a b c. fun2set _ = fun2set _ ⇒ s.gc_fun _ = s.gc_fun _’ kall_tac>>
-      rpt (CASE_TAC>>gs[wordSemTheory.get_var_def,
+      >- metis_tac[]
+      >- gs[wordPropsTheory.no_alloc_def])
+  >- (rpt (CASE_TAC>>gs[wordSemTheory.get_var_def,
                         wordSemTheory.set_var_def,
                         wordSemTheory.unset_var_def])>>
       TRY (metis_tac[]>>NO_TAC)>>gvs[]>>
@@ -598,7 +683,8 @@ Proof
       first_x_assum $ qspecl_then [‘rst’, ‘i’] assume_tac>>gs[]>>
       metis_tac[])
   >- (imp_res_tac word_exp_const_memory>>
-      CASE_TAC>>FULL_CASE_TAC>>gs[wordSemTheory.word_exp_def]>-metis_tac[]>>
+      CASE_TAC>>FULL_CASE_TAC>>
+      gs[wordSemTheory.word_exp_def]>-metis_tac[]>>
       gvs[wordSemTheory.set_var_def]>>metis_tac[])
   >- (CASE_TAC>>gvs[wordSemTheory.set_var_def]>>metis_tac[])
   >- metis_tac[]
@@ -609,8 +695,7 @@ Proof
   >- (imp_res_tac word_exp_const_memory>>
       CASE_TAC>>FULL_CASE_TAC>>gs[wordSemTheory.word_exp_def]>-metis_tac[]>>
       gvs[wordSemTheory.set_var_def]>>metis_tac[])
-  >- (res_tac>>qpat_x_assum ‘∀m m' a b c. fun2set _ = fun2set _ ⇒ s.gc_fun _ = s.gc_fun _’ kall_tac>>
-      imp_res_tac word_exp_const_memory>>
+  >- (imp_res_tac word_exp_const_memory>>
       rpt (CASE_TAC>>FULL_CASE_TAC>>
            gs[wordSemTheory.get_var_def,wordSemTheory.mem_store_def])>>gvs[]>>
       TRY (metis_tac[]>>NO_TAC)>>
@@ -621,28 +706,28 @@ Proof
   >- (qpat_abbrev_tac ‘ev = evaluate (p, _)’>>Cases_on ‘ev’>>gs[]>>
       pairarg_tac>>gvs[]>>
       last_x_assum $ qspec_then ‘m’ assume_tac>>gs[]>>
-      IF_CASES_TAC>>gvs[]>>metis_tac[])
-
+      IF_CASES_TAC>>
+      gvs[wordPropsTheory.no_alloc_def,
+          wordPropsTheory.no_install_def]>>
+      metis_tac[])
   >- (qmatch_asmsub_abbrev_tac ‘(NONE,_) = ev’>>Cases_on ‘ev’>>gs[]>>
+      drule wordPropsTheory.no_install_evaluate_const_code>>
+      gs[wordPropsTheory.no_alloc_def,
+         wordPropsTheory.no_install_def]>>
+      strip_tac>>gs[]>>
       Cases_on ‘q’>>gs[]
-      >- (first_assum $ qspecl_then [‘s.memory’, ‘m’] assume_tac>>res_tac>>
-          last_x_assum $ assume_tac>>
-          last_x_assum $ qspec_then ‘m’ assume_tac>>gs[]>>
-          first_x_assum $ qspec_then ‘m'’ assume_tac>>gs[]>>
-          pop_assum $ irule>>gs[]>>
-          qpat_x_assum ‘evaluate (_,s) = _’ assume_tac>>
-          drule wordPropsTheory.evaluate_consts>>strip_tac>>gs[])>>
+      >- (first_x_assum $ qspec_then ‘m’ assume_tac>>gs[])>>
       gvs[]>>
       last_x_assum $ qspec_then ‘m’ assume_tac>>gs[]>>metis_tac[])
   >- (rpt (CASE_TAC>>gvs[wordSemTheory.get_var_def,wordSemTheory.flush_state_def])>>metis_tac[])
   >- (rpt (CASE_TAC>>gs[wordSemTheory.get_var_def,wordSemTheory.jump_exc_def]>>
            rpt (FULL_CASE_TAC>>gs[]))>>gvs[]>>metis_tac[])
-
-  >- (ntac 2 (CASE_TAC>>gs[wordSemTheory.get_var_def])>-metis_tac[]>>
+  >- (gs[wordPropsTheory.no_alloc_def,
+         wordPropsTheory.no_install_def]>>
+      ntac 2 (CASE_TAC>>gs[wordSemTheory.get_var_def])>-metis_tac[]>>
       (rpt (CASE_TAC>>gs[])>>metis_tac[]))
   >- (gs[wordSemTheory.set_var_def]>>metis_tac[])
   >- metis_tac[]
-
   >- (rpt (CASE_TAC>>gs[])>>
       TRY (pairarg_tac>>gs[])>>
       rpt (CASE_TAC>>gs[])>>
@@ -654,9 +739,8 @@ Proof
       gvs[]>>metis_tac[])
   >- (rpt (CASE_TAC>>gs[wordSemTheory.get_var_def,wordSemTheory.buffer_write_def])>>
       gvs[]>>metis_tac[])
-
-  >- (res_tac>>qpat_x_assum ‘∀m m' a b c. fun2set _ = fun2set _ ⇒ s.gc_fun _ = s.gc_fun _’ kall_tac>>
-      gs[wordSemTheory.get_var_def,
+(* 2 goals to go *)
+  >- (gs[wordSemTheory.get_var_def,
          wordSemTheory.flush_state_def]>>
       rpt (CASE_TAC>>gs[])>>gvs[]>>TRY (metis_tac[])
       >- (imp_res_tac read_bytearray_const_memory>>
@@ -678,14 +762,24 @@ Proof
 
   Cases_on ‘get_vars args s’>>gs[]>- metis_tac[]>>
   Cases_on ‘bad_dest_args dest args’>>gs[]>- metis_tac[]>>
-  Cases_on ‘find_code dest (add_ret_loc ret x) s.code s.stack_size’>>gs[]>- metis_tac[]>>
+  Cases_on ‘find_code dest (add_ret_loc ret x) s.code s.stack_size’>>
+  gs[]>- metis_tac[]>>
   rename1 ‘_ = SOME x'’>>PairCases_on ‘x'’>>gs[]>>
-  Cases_on ‘ret’>>gs[]
+  gs[wordPropsTheory.no_alloc_def,
+     wordPropsTheory.no_install_def]>>
+  Cases_on ‘ret’>>gs[]>>
+  drule wordPropsTheory.no_alloc_find_code>>
+  drule_at (Pos (el 2)) wordPropsTheory.no_install_find_code>>
+  gs[]>>strip_tac>>strip_tac
   >- (IF_CASES_TAC>>gs[]
-      >- (IF_CASES_TAC>>gs[wordSemTheory.flush_state_def]>>gvs[]>-metis_tac[]>>
+      >- (IF_CASES_TAC>>gs[wordSemTheory.flush_state_def]>>
+          gvs[]>-metis_tac[]>>
           rpt (CASE_TAC>>gvs[wordSemTheory.dec_clock_def])>>
+          drule wordPropsTheory.no_install_evaluate_const_code>>
+          strip_tac>>gs[]>>
           rpt (FULL_CASE_TAC>>gs[])>>
-          first_x_assum $ qspec_then ‘m’ assume_tac>>gs[]>>metis_tac[])>>
+          first_x_assum $ qspec_then ‘m’ assume_tac>>
+          gvs[]>>metis_tac[])>>
       metis_tac[])>>
   ntac 4 TOP_CASE_TAC>>gs[]>>
   IF_CASES_TAC>>gs[]>-metis_tac[]>>
@@ -695,71 +789,98 @@ Proof
       pairarg_tac>>gs[]>-metis_tac[]>>
       gs[wordSemTheory.dec_clock_def]>>
       qmatch_asmsub_abbrev_tac ‘evaluate (x1, s1) = (SOME (Result (Loc _ _) _ ), _)’>>
-      Cases_on ‘evaluate (x1, s1)’>>rename1 ‘evaluate _ = (q4, r)’>>gs[]>>
+      Cases_on ‘evaluate (x1, s1)’>>
+      rename1 ‘evaluate _ = (q4, r)’>>gs[]>>
+      drule wordPropsTheory.no_install_evaluate_const_code>>
+      impl_tac >- gs[Abbr ‘s1’]>>
+      strip_tac>>gs[]>>
       Cases_on ‘∃y. q4 = SOME (Result (Loc q''' r') y)’>>gs[]
       >- (Cases_on ‘pop_env r’>>gs[]
-          >- (first_x_assum $ qspec_then ‘m’ assume_tac>>gs[wordSemTheory.pop_env_def]>>
+          >- (first_x_assum $ qspec_then ‘m’ assume_tac>>
+              gs[wordSemTheory.pop_env_def]>>
               rpt (CASE_TAC>>gs[])>>metis_tac[])>>
           rename1 ‘domain x''.locals = domain x'’>>
-          Cases_on ‘domain x''.locals = domain x'’>>gs[wordSemTheory.set_var_def]
-          >- (last_x_assum assume_tac>>
-              last_x_assum $ qspec_then ‘m’ assume_tac>>gs[wordSemTheory.pop_env_def]>>
+          Cases_on ‘domain x''.locals = domain x'’>>
+          gs[wordSemTheory.set_var_def]
+          >- (last_x_assum $ qspec_then ‘m’ assume_tac>>
+              gs[wordSemTheory.pop_env_def]>>
               rpt (CASE_TAC>>gs[])>>gvs[]>>
               last_x_assum $ qspec_then ‘m''’ assume_tac>>gs[]>>
-
               pop_assum $ irule>>
               qpat_x_assum ‘evaluate (_, s1) = (_,r)’ assume_tac>>
-              drule wordPropsTheory.evaluate_consts>>strip_tac>>gs[Abbr ‘s1’])>>
-          first_x_assum $ qspec_then ‘m’ assume_tac>>gs[wordSemTheory.pop_env_def]>>
+              drule wordPropsTheory.evaluate_consts>>strip_tac>>
+              gs[Abbr ‘s1’])>>
+          first_x_assum $ qspec_then ‘m’ assume_tac>>
+          gs[wordSemTheory.pop_env_def]>>
           rpt (CASE_TAC>>gs[])>>gvs[]>>metis_tac[])>>
       first_x_assum $ qspec_then ‘m’ assume_tac>>gs[]>>
       Cases_on ‘q4’>>gs[]>-metis_tac[]>>
-      rename1 ‘evaluate _ = (SOME x2, r)’>>Cases_on ‘x2’>>gs[]>>metis_tac[])
+      rename1 ‘evaluate _ = (SOME x2, r)’>>Cases_on ‘x2’>>
+      gs[]>>metis_tac[])>>
+  rename1 ‘push_env x0 (SOME x2) _’>>PairCases_on ‘x2’>>
+  IF_CASES_TAC>>gvs[wordSemTheory.flush_state_def,
+                    wordSemTheory.push_env_def]>>
+  pairarg_tac>>gs[]>-metis_tac[]>>
+  gs[wordSemTheory.dec_clock_def]>>
+  qmatch_asmsub_abbrev_tac ‘evaluate (x1, s1) = (SOME (Result (Loc _ _) _ ), _)’>>
 
-  >- (rename1 ‘push_env x0 (SOME x2) _’>>PairCases_on ‘x2’>>
-      IF_CASES_TAC>>gvs[wordSemTheory.flush_state_def,wordSemTheory.push_env_def]>>
-      pairarg_tac>>gs[]>-metis_tac[]>>
-      gs[wordSemTheory.dec_clock_def]>>
-      qmatch_asmsub_abbrev_tac ‘evaluate (x1, s1) = (SOME (Result (Loc _ _) _ ), _)’>>
-      Cases_on ‘evaluate (x1, s1)’>>rename1 ‘evaluate _ = (q4, r)’>>gs[]>>
-      Cases_on ‘∃y. q4 = SOME (Result (Loc q''' r') y)’>>gs[]
-      >- (Cases_on ‘pop_env r’>>gs[]
-          >- (first_x_assum $ qspec_then ‘m’ assume_tac>>gs[wordSemTheory.pop_env_def]>>
-              rpt (CASE_TAC>>gs[])>>metis_tac[])>>
-          rename1 ‘domain x'.locals = domain x0’>>
-          Cases_on ‘domain x'.locals = domain x0’>>gs[wordSemTheory.set_var_def]
-          >- (last_x_assum  assume_tac>>
-              last_x_assum $ qspec_then ‘m’ assume_tac>>gs[wordSemTheory.pop_env_def]>>
-              rpt (CASE_TAC>>gs[])>>gvs[]>>
-              last_x_assum $ qspec_then ‘m''’ assume_tac>>gs[]>>
-              pop_assum $ irule>>
-              qpat_x_assum ‘evaluate (_, s1) = (_,r)’ assume_tac>>
-              drule wordPropsTheory.evaluate_consts>>strip_tac>>gs[Abbr ‘s1’])>>
-          first_x_assum $ qspec_then ‘m’ assume_tac>>gs[wordSemTheory.pop_env_def]>>
-          rpt (CASE_TAC>>gs[])>>gvs[]>>metis_tac[])>>
-      last_x_assum assume_tac>>res_tac>>
-      last_x_assum $ qspec_then ‘m’ assume_tac>>gs[]>>
-      Cases_on ‘q4’>>gs[]>-metis_tac[]>>
-      rename1 ‘evaluate _ = (SOME x2, r)’>>gs[]>>
-      Cases_on ‘x2’>>gs[]>-metis_tac[]
-      >- (rpt (IF_CASES_TAC>>gs[wordSemTheory.set_var_def])>-metis_tac[]
-          >- (first_x_assum irule>>gs[]>>
-              qpat_x_assum ‘evaluate (_,s1) = _’ assume_tac>>
-              drule wordPropsTheory.evaluate_consts>>strip_tac>>gs[Abbr ‘s1’])>>
-          metis_tac[])>>
+  Cases_on ‘evaluate (x1, s1)’>>
+  rename1 ‘evaluate _ = (q4, r)’>>gs[]>>
+(*  pairarg_tac>>*)
+  gs[wordSemTheory.dec_clock_def]>>
+  drule wordPropsTheory.no_install_evaluate_const_code>>
+  impl_tac >- gs[Abbr ‘s1’]>>
+  strip_tac>>gs[]>>
+  Cases_on ‘∃y. q4 = SOME (Result (Loc q''' r') y)’>>gs[]
+  >- (Cases_on ‘pop_env r’>>gs[]
+      >- (first_x_assum $ qspec_then ‘m’ assume_tac>>
+          gs[wordSemTheory.pop_env_def]>>
+          rpt (CASE_TAC>>gs[])>>metis_tac[])>>
+      rename1 ‘domain x'.locals = domain x0’>>
+      Cases_on ‘domain x'.locals = domain x0’>>
+      gs[wordSemTheory.set_var_def]
+      >- (last_x_assum $ qspec_then ‘m’ assume_tac>>
+          gs[wordSemTheory.pop_env_def]>>
+          rpt (CASE_TAC>>gs[])>>gvs[]>>
+          last_x_assum $ qspec_then ‘m''’ assume_tac>>gs[]>>
+          pop_assum $ irule>>
+          qpat_x_assum ‘evaluate (_, s1) = (_,r)’ assume_tac>>
+          drule wordPropsTheory.evaluate_consts>>strip_tac>>
+          gs[Abbr ‘s1’])>>
+      first_x_assum $ qspec_then ‘m’ assume_tac>>
+      gs[wordSemTheory.pop_env_def]>>
+      rpt (CASE_TAC>>gs[])>>gvs[]>>metis_tac[])>>
+  last_x_assum $ qspec_then ‘m’ assume_tac>>gs[]>>
+  Cases_on ‘q4’>>gs[]>-metis_tac[]>>
+  rename1 ‘evaluate _ = (SOME x2, r)’>>gs[]>>
+  Cases_on ‘x2’>>gs[]>-metis_tac[]
+  >- (rpt (IF_CASES_TAC>>gs[wordSemTheory.set_var_def])>-metis_tac[]
+      >- (first_x_assum irule>>gs[]>>
+          qpat_x_assum ‘evaluate (_,s1) = _’ assume_tac>>
+          drule wordPropsTheory.evaluate_consts>>strip_tac>>
+          gs[Abbr ‘s1’])>>
       metis_tac[])>>
   metis_tac[]
 QED
 
 Theorem word_semantics_memory_update:
-  (∀m m' a b c.
+  fun2set (s.memory,s.mdomain) = fun2set (m,s.mdomain) ∧
+     (∀m m' a b c.
+       fun2set (m, s.mdomain) = fun2set (m', s.mdomain) ⇒
+       (∀m0 m0' a0 c0 a0' c0'.
+         s.gc_fun (a, m, b, c) = SOME (a0,m0,c0) ∧
+         s.gc_fun (a, m', b, c) = SOME (a0',m0',c0') ⇒
+         fun2set (m0,s.mdomain) = fun2set (m0',s.mdomain) ∧
+         a0' = a0 ∧ c0' = c0')) ⇒
+(*  (∀m m' a b c.
     (fun2set (m, s.mdomain) = fun2set (m', s.mdomain)) ⇒
-    s.gc_fun (a, m, b, c) = s.gc_fun (a, m', b, c)) ∧
-  fun2set (s.memory,s.mdomain) = fun2set (m,s.mdomain) ⇒
+    s.gc_fun (a, m, b, c) = s.gc_fun (a, m', b, c)) ∧*)
   wordSem$semantics ((s with memory := m):(α,β,'ffi) wordSem$state) start ≠ Fail ⇒
   wordSem$semantics s start =
   wordSem$semantics ((s with memory := m):(α,β,'ffi) wordSem$state) start
 Proof
+cheat
+(*
   strip_tac>>
   gs[wordSemTheory.semantics_def]>>
   IF_CASES_TAC >> full_simp_tac(srw_ss())[] >>
@@ -871,6 +992,7 @@ Proof
   Cases_on ‘ev’>>gs[]>>
   drule memory_swap_lemma>>gs[]>>strip_tac>>
   first_x_assum $ qspec_then ‘m’ assume_tac>>gs[]
+*)
 QED
 
 (* new *)
@@ -1488,8 +1610,6 @@ Proof
    disch_then $ qspec_then ‘gck’ assume_tac>>gs[]>>
 (***)
 
-  ‘fun2set (sss.memory,s.memaddrs) = fun2set (ssx.memory,s.memaddrs) ∧ sss.mdomain = ssx.mdomain’ by cheat>>
-
   ‘sss.regs ' (sp + 2) = Word (s.base_addr) ∧
    w2n (theWord (sss.regs ' (sp + 1)) +
         -1w * theWord (sss.regs ' (sp + 2))) DIV
@@ -1602,30 +1722,40 @@ Proof
    (* memory domain done *)
 
   (* memory shift *)
-  ‘fun2set (wst0.memory, s.memaddrs) =
-   fun2set (mk_mem (make_funcs (compile_prog pan_code)) s.memory,s.memaddrs)’
+
+  ‘fun2set (wst0.memory,wst0.mdomain) =
+   fun2set (mk_mem (make_funcs (compile_prog pan_code)) s.memory,wst0.mdomain)’
     by (gs[Abbr ‘wst0’, Abbr ‘wst’]>>
         gs[word_to_stackProofTheory.make_init_def]>>
         gs[stack_removeProofTheory.init_reduce_def]>>gvs[]>>
+        qpat_x_assum ‘fun2set (ssx.memory,_) = _’ $ assume_tac o GSYM>>
+        gs[wordSemTheory.theWord_def]>>
         gs[Abbr ‘ssx’, Abbr ‘labst’]>>
         rewrite_tac[lab_to_targetProofTheory.make_init_def]>>simp[]>>
         gs[wordSemTheory.theWord_def]>>
         gs[set_sepTheory.fun2set_eq])>>
 
-  ‘∀m m' a b c.
-    fun2set (m, wst0.mdomain) = fun2set (m',wst0.mdomain) ⇒
-    wst0.gc_fun (a,m,b,c) = wst0.gc_fun (a,m',b,c)’
- by (gs[Abbr ‘wst0’, Abbr ‘wst’]>>
-     gs[word_to_stackProofTheory.make_init_def]>>
-     qpat_x_assum ‘gc_fun_const_ok _’ assume_tac>>
-     rpt strip_tac>>
-     simp[word_gcFunctionsTheory.word_gc_fun_def]>>
-     cheat)>>
+  ‘(∀m m' a b c.
+       fun2set (m, wst0.mdomain) = fun2set (m', wst0.mdomain) ⇒
+       (∀m0 m0' a0 c0 a0' c0'.
+         wst0.gc_fun (a, m, b, c) = SOME (a0,m0,c0) ∧
+         wst0.gc_fun (a, m', b, c) = SOME (a0',m0',c0') ⇒
+         fun2set (m0,wst0.mdomain) = fun2set (m0',wst0.mdomain) ∧
+         a0' = a0 ∧ c0' = c0'))’
+  by (gs[Abbr ‘wst0’, Abbr ‘wst’]>>
+        gs[word_to_stackProofTheory.make_init_def]>>
+        gs[stack_removeProofTheory.init_reduce_def]>>gvs[]>>
+      rpt gen_tac>>
+      strip_tac>>
+      rpt gen_tac>>
+      strip_tac>>
+      gs[word_gcFunctionsTheory.word_gc_fun_def]>>
+      ‘c.data_conf.gc_kind = None’ by cheat>>
+      FULL_CASE_TAC>>gs[])>>
 
   qmatch_asmsub_abbrev_tac ‘fun2set _ = fun2set (m0,_)’>>
-  drule_at Any word_semantics_memory_update>>
+  drule_then drule word_semantics_memory_update>>
   disch_then $ qspec_then ‘InitGlobals_location’ mp_tac>>
-  disch_then $ drule_at Any>>
   strip_tac>>
   ‘semantics (wst0 with memory := m0) InitGlobals_location ≠ Fail ⇒
    semantics wst0 InitGlobals_location ≠ Fail’
