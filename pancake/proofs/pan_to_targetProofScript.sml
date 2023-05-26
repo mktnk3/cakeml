@@ -1813,4 +1813,15 @@ Proof
   drule no_alloc_word_evaluate>>gs[]
 QED
 
+Definition pan_lang_is_safe_for_space_def:
+  pan_is_safe_for_space asm_conf prog stack_heap_limit =
+  let word_prog = pan_to_word_compile_prog prog in
+  let k = asm_conf.reg_count − (5 + LENGTH asm_conf.avoid_regs) in
+  let stack_size =
+        mapi
+        (λn (arg_count,prog).
+           FST (SND (compile_prog prog arg_count k (Nil,0)))) (fromAList word_prog) in
+    option_le (max_depth stack_size (full_call_graph InitGlobals_location (fromAList word_prog))) (SOME (FST stack_heap_limit))
+End
+
 val _ = export_theory();
