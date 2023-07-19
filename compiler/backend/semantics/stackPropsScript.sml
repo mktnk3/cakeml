@@ -175,6 +175,30 @@ Proof
   EVAL_TAC >> srw_tac[][]
 QED
 
+Theorem sh_mem_load_with_const[simp]:
+   sh_mem_load r x (y with clock := k) = sh_mem_load r x y
+Proof
+  EVAL_TAC
+QED
+
+Theorem sh_mem_store_with_const[simp]:
+   sh_mem_store x y (z with clock := k) = sh_mem_store x y z
+Proof
+  EVAL_TAC >> srw_tac[][]
+QED
+
+Theorem sh_mem_load_byte_with_const[simp]:
+   sh_mem_load_byte r x (y with clock := k) = sh_mem_load_byte r x y
+Proof
+  EVAL_TAC
+QED
+
+Theorem sh_mem_store_byte_with_const[simp]:
+   sh_mem_store_byte x y (z with clock := k) = sh_mem_store_byte x y z
+Proof
+  EVAL_TAC >> srw_tac[][]
+QED
+
 Theorem word_exp_with_const[simp]:
    ∀s y k. word_exp (s with clock := k) y = word_exp s y
 Proof
@@ -690,10 +714,17 @@ Proof
   \\ metis_tac []
 QED
 
+Definition addr_ok_def:
+  addr_ok op (Addr a w) c ⇔
+  (reg_ok a c ∧
+   if op ∈ {Load; Store} then addr_offset_ok c w else byte_offset_ok c w)
+End
+
 (* TODO: This is not updated for Install, CBW and DBW *)
 (* asm_ok out of stack_names *)
 val stack_asm_ok_def = Define`
   (stack_asm_ok c ((Inst i):'a stackLang$prog) ⇔ asm$inst_ok i c) ∧
+  (stack_asm_ok c (ShMemOp op r ad) ⇔ reg_ok r c ∧ addr_ok op ad c) ∧
   (stack_asm_ok c (CodeBufferWrite r1 r2) ⇔ r1 < c.reg_count ∧ r2 < c.reg_count ∧ ¬MEM r1 c.avoid_regs ∧ ¬MEM r2 c.avoid_regs) ∧
   (stack_asm_ok c (Seq p1 p2) ⇔ stack_asm_ok c p1 ∧ stack_asm_ok c p2) ∧
   (stack_asm_ok c (If cmp n r p p') ⇔ stack_asm_ok c p ∧ stack_asm_ok c p') ∧
@@ -807,6 +838,7 @@ val stack_asm_name_def = Define`
   (stack_asm_name c ((Inst i):'a stackLang$prog) ⇔ inst_name c i) ∧
   (stack_asm_name c (OpCurrHeap b r1 r2) ⇔
     (c.two_reg_arith ⇒ r1 = r2) ∧ reg_name r1 c ∧ reg_name r2 c) ∧
+  (stack_asm_name c (ShMemOp op r a) ⇔ reg_name r c ∧ addr_name op a c) ∧
   (stack_asm_name c (CodeBufferWrite r1 r2) ⇔ reg_name r1 c ∧ reg_name r2 c) ∧
   (stack_asm_name c (DataBufferWrite r1 r2) ⇔ reg_name r1 c ∧ reg_name r2 c) ∧
   (stack_asm_name c (Seq p1 p2) ⇔ stack_asm_name c p1 ∧ stack_asm_name c p2) ∧
@@ -948,6 +980,7 @@ val reg_bound_def = Define `
                           (case x2 of SOME (y,_,_) => reg_bound y k | NONE => T))) /\
   (reg_bound (Install ptr len dptr dlen ret) k ⇔
     ptr < k ∧ len < k ∧ dptr < k ∧ dlen < k ∧ ret < k) ∧
+  (reg_bound (ShMemOp op r (Addr a _)) k ⇔ r < k ∧ a < k) ∧
   (reg_bound (CodeBufferWrite r1 r2) k ⇔
     r1 < k ∧ r2 < k) ∧
   (reg_bound (DataBufferWrite r1 r2) k ⇔
