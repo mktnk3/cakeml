@@ -86,6 +86,7 @@ val _ = Datatype `
      ; stack_space : num
      ; memory  : 'a word -> 'a word_loc
      ; mdomain : ('a word) set
+     ; sh_mdomain : ('a word) set
      ; bitmaps : 'a word list
      ; compile : 'c -> (num # 'a stackLang$prog) list -> (word8 list # 'c) option
      ; compile_oracle : num -> 'c # (num # 'a stackLang$prog) list # 'a word list
@@ -112,6 +113,72 @@ val mem_load_def = Define `
     if addr IN s.mdomain then
       SOME (s.memory addr)
     else NONE`
+
+Definition sh_mem_store_def:
+  sh_mem_store (w:'a word) (a:'a word) (s:('a,'c,'ffi) stackSem$state) =
+  if w2n a MOD w2n (bytes_in_word:'a word) = 0 ∧ a IN s.sh_mdomain then
+    SOME (call_FFI s.ffi "MappedWrite" [] [])
+  else NONE
+End
+
+Definition sh_mem_load_def:
+  sh_mem_load (w:'a word) (a:'a word) (s:('a,'c,'ffi) stackSem$state) =
+  if w2n a MOD w2n (bytes_in_word:'a word) = 0 ∧ a IN s.sh_mdomain then
+    SOME (call_FFI s.ffi "MappedRead" [] [])
+  else NONE
+End
+
+Definition sh_mem_store_byte_def:
+  sh_mem_store_byte (w:'a word) (a:'a word) (s:('a,'c,'ffi) stackSem$state) =
+  if byte_align a IN s.sh_mdomain then
+    SOME (call_FFI s.ffi "MappedWrite" [] [])
+  else NONE
+End
+
+Definition sh_mem_load_byte_def:
+  sh_mem_load_byte (w:'a word) (a:'a word) (s:('a,'c,'ffi) stackSem$state) =
+  if byte_align a IN s.sh_mdomain then
+    SOME (call_FFI s.ffi "MappedRead" [] [])
+  else NONE
+End
+
+
+Definition word_to_bytes_aux_def:
+  word_to_bytes_aux 0 (w:'a word) be = [] ∧
+  word_to_bytes_aux (SUC n) w be =
+     get_byte (n2w n) w be::(word_to_bytes_aux n w be)
+End
+
+Definition word_to_bytes_def:
+  word_to_bytes (w:'a word) be =
+  REVERSE $ word_to_bytes_aux (dimindex (:'a) DIV 8) w be
+End
+(*
+EVAL “byte_index (1w:word64) F”
+EVAL “get_byte (7w:word32) (7w:word32) F”
+
+EVAL “word_to_bytes_aux 8 (7w:word64) F”
+EVAL “word_to_bytes_aux 8 (7w:word64) T”
+EVAL “word_to_bytes_aux 8 (4095w:word64) F”
+EVAL “word_to_bytes_aux 8 (4095w:word64) T”
+EVAL “word_to_bytes_aux 8 (7w:word64) F”
+EVAL “word_to_bytes_aux 8 (7w:word64) F”
+
+EVAL “w2w (n2w(2 ** 31 - 1) : word32) : word8”
+EVAL “w2w (n2w(2 ** 8 - 1) : word32) : word8”
+EVAL “(4095w : word32) >>> 1”
+
+EVAL “word_to_bytes (7w:word32) T”
+EVAL “word_to_bytes (7w:word64) F”
+*)
+Definition sh_mem_op_def:
+  (sh_mem_op Load r ad (s:('a,'c,'ffi) stackSem$state) = sh_mem_load r ad s) ∧
+  (sh_mem_op Store r ad s = sh_mem_store r ad s) ∧
+  (sh_mem_op Load8 r ad s = sh_mem_load_byte r ad s) ∧
+  (sh_mem_op Store8 r ad s = sh_mem_store_byte r ad s)(* ∧
+  (sh_mem_op Load32 r ad s = sh_mem_load r ad s 4) ∧
+  (sh_mem_op Store32 r ad s = sh_mem_store r ad s 4)*)
+End
 
 val dec_clock_def = Define `
   dec_clock (s:('a,'c,'ffi) stackSem$state) = s with clock := s.clock - 1`;
@@ -732,6 +799,14 @@ val evaluate_def = tDefine "evaluate" `
           | _ => (SOME Error,s))
         | _ => (SOME Error,s))
       | _ => (SOME Error,s)) /\
+  (evaluate (ShMemOp op r (Addr a w),s) =
+    (case (word_exp s (Op Add [Var a; Const w]), get_var r s) of
+        | (SOME a, SOME (Word w)) =>
+          (case sh_mem_op op w a s of
+           | SOME (FFI_final outcome) => (SOME (FinalFFI outcome), s)
+           | SOME (FFI_return new_ffi _) => (NONE, s with ffi := new_ffi)
+           | NONE => (SOME Error,s))
+        | _ => (SOME Error,s))) /\
   (evaluate (CodeBufferWrite r1 r2,s) =
     (case (get_var r1 s,get_var r2 s) of
         | (SOME (Word w1), SOME (Word w2)) =>

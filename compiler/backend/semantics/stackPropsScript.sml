@@ -23,6 +23,7 @@ Theorem set_store_const[simp]:
    (set_store x y z).be = z.be ∧
    (set_store x y z).gc_fun = z.gc_fun ∧
    (set_store x y z).mdomain = z.mdomain ∧
+   (set_store x y z).sh_mdomain = z.sh_mdomain ∧
    (set_store x y z).bitmaps = z.bitmaps ∧
    (set_store x y z).data_buffer = z.data_buffer ∧
    (set_store x y z).code_buffer = z.code_buffer ∧
@@ -50,6 +51,7 @@ Theorem set_var_const[simp]:
    (set_var x y z).be = z.be ∧
    (set_var x y z).gc_fun = z.gc_fun ∧
    (set_var x y z).mdomain = z.mdomain ∧
+   (set_var x y z).sh_mdomain = z.sh_mdomain ∧
    (set_var x y z).bitmaps = z.bitmaps ∧
    (set_var x y z).compile = z.compile ∧
    (set_var x y z).compile_oracle = z.compile_oracle ∧
@@ -82,6 +84,7 @@ Theorem empty_env_const[simp]:
    (empty_env z).be = z.be ∧
    (empty_env z).gc_fun = z.gc_fun ∧
    (empty_env z).mdomain = z.mdomain ∧
+   (empty_env z).sh_mdomain = z.sh_mdomain ∧
    (empty_env z).bitmaps = z.bitmaps ∧
    (empty_env z).data_buffer = z.data_buffer ∧
    (empty_env z).code_buffer = z.code_buffer ∧
@@ -107,6 +110,7 @@ Theorem alloc_const:
     t.be = s.be ∧
     t.gc_fun = s.gc_fun ∧
     t.mdomain = s.mdomain ∧
+    t.sh_mdomain = s.sh_mdomain ∧
     t.bitmaps = s.bitmaps ∧
     t.compile = s.compile ∧
     t.data_buffer = s.data_buffer ∧
@@ -127,6 +131,7 @@ Theorem store_const_sem_const:
     t.be = s.be ∧
     t.gc_fun = s.gc_fun ∧
     t.mdomain = s.mdomain ∧
+    t.sh_mdomain = s.sh_mdomain ∧
     t.bitmaps = s.bitmaps ∧
     t.compile = s.compile ∧
     t.store = s.store ∧
@@ -200,6 +205,7 @@ Theorem inst_const:
     t.be = s.be ∧
     t.gc_fun = s.gc_fun ∧
     t.mdomain = s.mdomain ∧
+    t.sh_mdomain = s.sh_mdomain ∧
     t.bitmaps = s.bitmaps ∧
     t.compile = s.compile ∧
     t.compile_oracle = s.compile_oracle
@@ -230,6 +236,7 @@ Theorem dec_clock_const[simp]:
    (dec_clock z).be = z.be ∧
    (dec_clock z).gc_fun = z.gc_fun ∧
    (dec_clock z).mdomain = z.mdomain ∧
+   (dec_clock z).sh_mdomain = z.sh_mdomain ∧
    (dec_clock z).bitmaps = z.bitmaps ∧
    (dec_clock z).compile = z.compile ∧
    (dec_clock z).compile_oracle = z.compile_oracle
@@ -246,6 +253,7 @@ Theorem evaluate_consts:
       s1.be = s.be /\
       s1.gc_fun = s.gc_fun /\
       s1.mdomain = s.mdomain /\
+      s1.sh_mdomain = s.sh_mdomain /\
       s1.compile = s.compile
 Proof
   recInduct evaluate_ind >>
@@ -373,6 +381,14 @@ Proof
   every_case_tac >> full_simp_tac(srw_ss())[] >> srw_tac[][] >>
   TRY (CHANGED_TAC(full_simp_tac(srw_ss())[ffiTheory.call_FFI_def]) >>
        every_case_tac >> full_simp_tac(srw_ss())[] >> srw_tac[][] ) >>
+  TRY (Cases_on ‘op’>>fs[sh_mem_op_def]>>
+       fs[sh_mem_load_def,sh_mem_store_def,
+          sh_mem_load_byte_def,sh_mem_store_byte_def]>>
+       pop_assum mp_tac>>
+       simp[ffiTheory.call_FFI_def]>>
+       CASE_TAC>>fs[]>>
+       CASE_TAC>>fs[]>>
+       strip_tac>>gvs[])>>
   metis_tac[IS_PREFIX_TRANS]
 QED
 
@@ -458,7 +474,9 @@ Proof
   TRY (
     rename1`call_FFI` >>
     pairarg_tac >> full_simp_tac(srw_ss())[] >> rveq >> simp[] ) >>
-  metis_tac[]
+  Cases_on ‘op’>>fs[sh_mem_op_def]>>
+  gs[sh_mem_load_def,sh_mem_store_def,
+     sh_mem_load_byte_def,sh_mem_store_byte_def]
 QED
 
 Theorem with_clock_ffi:
@@ -511,6 +529,9 @@ Proof
     rename1 `buffer_flush _ _ _ = _`>>
     pairarg_tac>>fs[]>>
     every_case_tac >> fs[get_var_def])>>
+  TRY (Cases_on ‘op’>>fs[sh_mem_op_def]>>
+       gs[sh_mem_load_def,sh_mem_store_def,
+          sh_mem_load_byte_def,sh_mem_store_byte_def])>>
   metis_tac[IS_PREFIX_TRANS,evaluate_io_events_mono,PAIR]
 QED
 
