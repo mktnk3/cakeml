@@ -373,14 +373,14 @@ Definition share_mem_load_def:
         if (w2n v MOD n) = 0 /\ (byte_align v IN s.shared_mem_domain)
         then
           (case call_FFI s.ffi "MappedRead"
-            [n2w (dimindex (:'a) DIV 8);n2w n]
-            (addr2w8list v) of
+            [n2w n]
+            (word_to_bytes v F) of
           | FFI_final outcome => SOME (FFI_final outcome, s)
           | FFI_return new_ffi new_bytes =>
               SOME (FFI_return new_ffi new_bytes,
                 s with <|
                   ffi := new_ffi;
-                  regs := (r =+ Word (n2w $ bytes2num new_bytes)) s.regs;
+                  regs := (r =+ Word (word_of_bytes F 0w new_bytes)) s.regs;
                   pc := s.pc + 1;
                   clock := s.clock - 1 |>))
         else NONE
@@ -396,8 +396,10 @@ Definition share_mem_store_def:
            if (w2n v MOD n) = 0 /\ (byte_align v IN s.shared_mem_domain)
            then
              (case call_FFI s.ffi "MappedWrite"
-               [n2w (dimindex (:'a) DIV 8);n2w n]
-               (w2wlist_le w n ++ (addr2w8list v)) of
+               [n2w n]
+               ((if n = 1
+                 then [get_byte 0w w F]
+                 else word_to_bytes w F) ++ (word_to_bytes v F)) of
               | FFI_final outcome => SOME (FFI_final outcome,s)
               | FFI_return new_ffi new_bytes =>
                  SOME ((FFI_return new_ffi new_bytes),
@@ -408,10 +410,10 @@ End
 
 Definition share_mem_op_def:
   (share_mem_op Load r ad (s: ('a,'c,'ffi) labSem$state) =
-    share_mem_load r ad s (dimindex (:'a) DIV 8)) /\
+    share_mem_load r ad s (w2n (bytes_in_word:'a word))) /\
   (share_mem_op Load8 r ad s = share_mem_load r ad s 1) /\
   (share_mem_op Store r ad s = share_mem_store r ad s
-    (dimindex (:'a) DIV 8)) /\
+    (w2n (bytes_in_word:'a word))) /\
   (share_mem_op Store8 r ad s = share_mem_store r ad s 1) /\
   (share_mem_op Load32 r ad s = share_mem_load r ad s 4) /\
   (share_mem_op Store32 r ad s = share_mem_store r ad s 4)
