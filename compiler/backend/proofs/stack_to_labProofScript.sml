@@ -596,6 +596,7 @@ val state_rel_def = Define`
     (∀n v. FLOOKUP s.fp_regs n = SOME v ⇒ t.fp_regs n = v) ∧
     t.mem = s.memory ∧
     t.mem_domain = s.mdomain ∧
+    t.shared_mem_domain = s.sh_mdomain ∧
     t.be = s.be ∧
     t.ffi = s.ffi ∧
     t.clock = s.clock ∧
@@ -1098,6 +1099,7 @@ Theorem flatten_correct:
    ∀prog s1 t r s2 n l (t1:('a,'c,'ffi)labSem$state).
      evaluate (prog,s1) = (r,s2) ∧ r ≠ SOME Error ∧
      state_rel s1 t1 ∧
+     good_dimindex(:'a) ∧
      call_args prog t1.ptr_reg t1.len_reg t1.ptr2_reg t1.len2_reg t1.link_reg ∧
      code_installed t1.pc (append (FST (flatten t prog n l))) t1.code
      ⇒
@@ -2343,6 +2345,98 @@ Proof
       fs[GSYM ADD1,GENLIST_CONS]>>
       rfs[MAP_prog_to_section_Section_num]>>
       fs[o_DEF]))>>
+  conj_tac >- (
+    rename [`ShMemOp`] >>rpt gen_tac>>strip_tac>>
+    Cases_on ‘op’>>
+    fs[stackSemTheory.evaluate_def,flatten_def]>>
+    fs[word_exp_def,IS_SOME_EXISTS,wordLangTheory.word_op_def]>>
+    gs[case_eq_thms]>>
+    rveq>>fs[]>>
+    gs[sh_mem_op_def,sh_mem_store_def,sh_mem_load_def,
+       sh_mem_store_byte_def,sh_mem_load_byte_def]>>
+    imp_res_tac state_rel_read_reg_FLOOKUP_regs>>
+    pop_assum (assume_tac o GSYM)>>
+    gs[case_eq_thms]>>rveq>>
+    ‘w2n (w + x) MOD w2n (bytes_in_word:'a word) = 0 ⇒ byte_align (w + x) = w + x’
+      by (strip_tac>>
+          fs[byte_align_def,bytes_in_word_def]>>
+          ‘dimindex (:'a) DIV 8 < dimword (:'a)’ by gs[good_dimindex_def,dimword_def]>>
+          fs[LESS_MOD]>>
+          qabbrev_tac ‘X = LOG2 (dimindex (:'a) DIV 8)’>>
+          ‘dimindex (:'a) DIV 8 = 2 ** X’ by gs[]
+
+    ‘w2n (w + x) MOD w2n (bytes_in_word:'a word) = 0 ∧ w + x ∈ s.sh_mdomain
+     ⇒ byte_align (w + x) ∈ s.sh_mdomain’
+    by (strip_tac>>
+      )>>
+    ‘w2n (bytes_in_word :'a word) ≠ 1’
+      by gs[good_dimindex_def,bytes_in_word_def,dimword_def]>>
+    fs[]>>~[‘Halt (FFI_outcome _)’]>>
+             fs[code_installed_def,call_args_def] >>
+             simp[Once labSemTheory.evaluate_def,asm_fetch_def] >>
+             gs[share_mem_op_def,share_mem_load_def,
+                share_mem_store_def,addr_def]>>
+             fs[stackSemTheory.dec_clock_def,get_var_def]>>
+             drule_then drule state_rel_read_reg_FLOOKUP_regs>>strip_tac>>
+             pop_assum $ assume_tac o GSYM>> fs[]>>
+             rpt (CASE_TAC>>fs[])>>
+             fs[state_rel_def,dec_clock_def,inc_pc_def]>>
+             gs[])>>
+
+    TRY (qexists_tac ‘0’>>qexists_tac ‘t1’>>fs[state_rel_def]>>NO_TAC)>>
+
+    qpat_x_assum ‘call_args (ShMemOp _ _ _) _ _ _ _ _’ mp_tac
+    >>~-([‘call_args (ShMemOp Load _ _) _ _ _ _ _’],  (* Load *)
+         strip_tac>>
+         qexists_tac`0`>>
+                    qexists_tac ‘dec_clock t1
+                    with <| regs := t1.regs⦇r ↦ Word (word_of_bytes F 0w new_bytes)⦈;
+                            io_regs := shift_seq 1 t1.io_regs;
+                            pc:=t1.pc+1; ffi := new_ffi|>’ >>
+         simp[]>>
+         fs[code_installed_def,call_args_def] >>
+         simp[Once labSemTheory.evaluate_def,asm_fetch_def] >>
+         gs[share_mem_op_def,share_mem_load_def,share_mem_store_def,addr_def]>>
+         fs[state_rel_def,stackSemTheory.dec_clock_def,dec_clock_def,inc_pc_def]>>
+         gs[]>>
+         fs[code_installed_def,call_args_def,shift_seq_def] >>
+         fs[FLOOKUP_UPDATE]>>
+         conj_tac >> rpt strip_tac>-
+          (FULL_CASE_TAC>>gs[APPLY_UPDATE_THM])>>
+         metis_tac[])
+    >>~-([‘call_args (ShMemOp Load8 _ _) _ _ _ _ _’],  (* Load *)
+         strip_tac>>
+         qexists_tac`0`>>
+                    qexists_tac ‘dec_clock t1
+                    with <| regs := t1.regs⦇r ↦ Word (word_of_bytes F 0w new_bytes)⦈;
+                            io_regs := shift_seq 1 t1.io_regs;
+                            pc:=t1.pc+1; ffi := new_ffi|>’ >>
+         simp[]>>
+         fs[code_installed_def,call_args_def] >>
+         simp[Once labSemTheory.evaluate_def,asm_fetch_def] >>
+         gs[share_mem_op_def,share_mem_load_def,share_mem_store_def,addr_def]>>
+         fs[state_rel_def,stackSemTheory.dec_clock_def,dec_clock_def,inc_pc_def]>>
+         gs[]>>
+         fs[code_installed_def,call_args_def,shift_seq_def] >>
+         fs[FLOOKUP_UPDATE]>>
+         conj_tac >> rpt strip_tac>-
+          (FULL_CASE_TAC>>gs[APPLY_UPDATE_THM])>>
+         metis_tac[])>>
+
+    (* Store *)
+    strip_tac>>
+    qexists_tac`0`>>
+    qexists_tac`dec_clock t1 with <| io_regs := shift_seq 1 t1.io_regs;
+                           pc:=t1.pc+1; ffi := new_ffi|>`>>
+    fs[state_rel_def,stackSemTheory.dec_clock_def,dec_clock_def,inc_pc_def]>>
+    fs[code_installed_def,call_args_def] >>
+    gs[Once labSemTheory.evaluate_def,asm_fetch_def] >>
+    gs[share_mem_op_def,share_mem_load_def,share_mem_store_def,addr_def]>>
+    gs[get_var_def]>>
+    last_assum $ qspecl_then [‘a’,‘Word x’] assume_tac>>
+    last_assum $ qspecl_then [‘r’,‘Word w'’] assume_tac>>
+    res_tac>>fs[]>>
+    fs[dec_clock_def,shift_seq_def,inc_pc_def]>>metis_tac[])
   conj_tac >- (
     rename [`CodeBufferWrite`] >>
     rw[stackSemTheory.evaluate_def,flatten_def]>>
