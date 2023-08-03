@@ -176,27 +176,31 @@ Proof
 QED
 
 Theorem sh_mem_load_with_const[simp]:
-   sh_mem_load r x (y with clock := k) = sh_mem_load r x y
+  FST (sh_mem_load r x (y with clock := k)) = FST (sh_mem_load r x y)
 Proof
-  EVAL_TAC
+  simp[sh_mem_load_def,ffiTheory.call_FFI_def]>>every_case_tac>>
+  fs[]
 QED
 
 Theorem sh_mem_store_with_const[simp]:
-   sh_mem_store x y (z with clock := k) = sh_mem_store x y z
+   FST (sh_mem_store x y (z with clock := k)) = FST (sh_mem_store x y z)
 Proof
-  EVAL_TAC >> srw_tac[][]
+  gs[sh_mem_store_def,ffiTheory.call_FFI_def]>>every_case_tac>>
+  gs[get_var_def]
 QED
 
 Theorem sh_mem_load_byte_with_const[simp]:
-   sh_mem_load_byte r x (y with clock := k) = sh_mem_load_byte r x y
+   FST (sh_mem_load_byte r x (y with clock := k)) = FST (sh_mem_load_byte r x y)
 Proof
-  EVAL_TAC
+  simp[sh_mem_load_byte_def,ffiTheory.call_FFI_def]>>every_case_tac>>
+  fs[]
 QED
 
 Theorem sh_mem_store_byte_with_const[simp]:
-   sh_mem_store_byte x y (z with clock := k) = sh_mem_store_byte x y z
+   FST (sh_mem_store_byte x y (z with clock := k)) = FST (sh_mem_store_byte x y z)
 Proof
-  EVAL_TAC >> srw_tac[][]
+  gs[sh_mem_store_byte_def,ffiTheory.call_FFI_def]>>every_case_tac>>
+  gs[get_var_def]
 QED
 
 Theorem word_exp_with_const[simp]:
@@ -268,6 +272,28 @@ Proof
   EVAL_TAC
 QED
 
+Theorem sh_mem_op_const[simp]:
+   sh_mem_op op a r s = (res,t) ⇒
+    t.clock = s.clock ∧
+    t.use_alloc = s.use_alloc ∧
+    t.use_store = s.use_store ∧
+    t.use_stack = s.use_stack ∧
+    t.code = s.code ∧
+    t.be = s.be ∧
+    t.gc_fun = s.gc_fun ∧
+    t.mdomain = s.mdomain ∧
+    t.sh_mdomain = s.sh_mdomain ∧
+    t.bitmaps = s.bitmaps ∧
+    t.compile = s.compile ∧
+    t.compile_oracle = s.compile_oracle
+Proof
+  strip_tac>>Cases_on`op` >>
+  fs[sh_mem_op_def,sh_mem_load_def,sh_mem_store_def,
+     sh_mem_load_byte_def,sh_mem_store_byte_def,
+     ffiTheory.call_FFI_def] >>
+  every_case_tac >> gvs[get_var_def]
+QED
+
 Theorem evaluate_consts:
    !c s r s1.
       evaluate (c,s) = (r,s1) ==>
@@ -287,6 +313,7 @@ Proof
   rpt (
     (strip_tac >> CHANGED_TAC(imp_res_tac alloc_const) >> full_simp_tac(srw_ss())[]) ORELSE
     (strip_tac >> CHANGED_TAC(imp_res_tac inst_const) >> full_simp_tac(srw_ss())[]) ORELSE
+    (strip_tac >> CHANGED_TAC(imp_res_tac sh_mem_op_const) >> full_simp_tac(srw_ss())[]) ORELSE
     (strip_tac >> var_eq_tac >> rveq >> full_simp_tac(srw_ss())[]) ORELSE
     (CASE_TAC >> full_simp_tac(srw_ss())[]) ORELSE
     (pairarg_tac >> simp[]))>>
@@ -306,9 +333,11 @@ Proof
   rw[evaluate_def] >>
   TRY(qexists_tac`0` \\ fsrw_tac[ETA_ss][shift_seq_def] \\ NO_TAC) \\
   TRY(
-    fs[case_eq_thms,empty_env_def]>>rw[]>>
+    fs[case_eq_thms,empty_env_def,dec_clock_def]>>rw[]>>
+    TRY (qpat_x_assum ‘(r',s1) = _’ $ assume_tac o GSYM)>>
     imp_res_tac alloc_const \\ imp_res_tac inst_const \\
     imp_res_tac store_const_sem_const \\
+    imp_res_tac sh_mem_op_const \\
     qexists_tac`0` \\ fsrw_tac[ETA_ss][shift_seq_def] \\ NO_TAC)
   (* Seq *)
   >- (
@@ -385,7 +414,7 @@ Proof
   rw[] \\
   imp_res_tac evaluate_code_bitmaps \\
   rw[] \\
-  metis_tac[subspt_FOLDL_union]
+  irule subspt_FOLDL_union
 QED
 
 Theorem evaluate_io_events_mono:
@@ -408,11 +437,8 @@ Proof
   TRY (Cases_on ‘op’>>fs[sh_mem_op_def]>>
        fs[sh_mem_load_def,sh_mem_store_def,
           sh_mem_load_byte_def,sh_mem_store_byte_def]>>
-       pop_assum mp_tac>>
-       simp[ffiTheory.call_FFI_def]>>
-       CASE_TAC>>fs[]>>
-       CASE_TAC>>fs[]>>
-       strip_tac>>gvs[])>>
+       fs[ffiTheory.call_FFI_def]>>
+       rpt (FULL_CASE_TAC>>gvs[]))>>
   metis_tac[IS_PREFIX_TRANS]
 QED
 
@@ -499,8 +525,9 @@ Proof
     rename1`call_FFI` >>
     pairarg_tac >> full_simp_tac(srw_ss())[] >> rveq >> simp[] ) >>
   Cases_on ‘op’>>fs[sh_mem_op_def]>>
-  gs[sh_mem_load_def,sh_mem_store_def,
-     sh_mem_load_byte_def,sh_mem_store_byte_def]
+  gs[sh_mem_load_def,sh_mem_store_def,get_var_def,
+     sh_mem_load_byte_def,sh_mem_store_byte_def,ffiTheory.call_FFI_def]>>
+  rpt (FULL_CASE_TAC>>gvs[])
 QED
 
 Theorem with_clock_ffi:
@@ -554,8 +581,9 @@ Proof
     pairarg_tac>>fs[]>>
     every_case_tac >> fs[get_var_def])>>
   TRY (Cases_on ‘op’>>fs[sh_mem_op_def]>>
-       gs[sh_mem_load_def,sh_mem_store_def,
-          sh_mem_load_byte_def,sh_mem_store_byte_def])>>
+       gs[sh_mem_load_def,sh_mem_store_def,ffiTheory.call_FFI_def,
+          sh_mem_load_byte_def,sh_mem_store_byte_def,get_var_def]>>
+      rpt (FULL_CASE_TAC>>gvs[]))>>
   metis_tac[IS_PREFIX_TRANS,evaluate_io_events_mono,PAIR]
 QED
 
