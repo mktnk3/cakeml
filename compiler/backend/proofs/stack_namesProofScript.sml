@@ -67,30 +67,6 @@ Proof
   EVAL_TAC >> rw[] >> EVAL_TAC >> rw[]
 QED
 
-Theorem sh_mem_load_rename_state[simp]:
-  sh_mem_load x y (rename_state c f s) = sh_mem_load x y s
-Proof
-  EVAL_TAC
-QED
-
-Theorem sh_mem_store_rename_state[simp]:
-  sh_mem_store x y (rename_state c f s) = sh_mem_store x y s
-Proof
-  EVAL_TAC >> rw[] >> EVAL_TAC >> rw[]
-QED
-
-Theorem sh_mem_load_byte_rename_state[simp]:
-  sh_mem_load_byte x y (rename_state c f s) = sh_mem_load_byte x y s
-Proof
-  EVAL_TAC
-QED
-
-Theorem sh_mem_store_byte_rename_state[simp]:
-  sh_mem_store_byte x y (rename_state c f s) = sh_mem_store_byte x y s
-Proof
-  EVAL_TAC >> rw[] >> EVAL_TAC >> rw[]
-QED
-
 Theorem get_var_find_name[simp]:
    BIJ (find_name f) UNIV UNIV ==>
     get_var (find_name f v) (rename_state c f s) = get_var v s
