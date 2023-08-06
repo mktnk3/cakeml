@@ -1099,7 +1099,6 @@ Theorem flatten_correct:
    ∀prog s1 t r s2 n l (t1:('a,'c,'ffi)labSem$state).
      evaluate (prog,s1) = (r,s2) ∧ r ≠ SOME Error ∧
      state_rel s1 t1 ∧
-     good_dimindex(:'a) ∧
      call_args prog t1.ptr_reg t1.len_reg t1.ptr2_reg t1.len2_reg t1.link_reg ∧
      code_installed t1.pc (append (FST (flatten t prog n l))) t1.code
      ⇒
@@ -2356,37 +2355,25 @@ Proof
        sh_mem_store_byte_def,sh_mem_load_byte_def]>>
     imp_res_tac state_rel_read_reg_FLOOKUP_regs>>
     pop_assum (assume_tac o GSYM)>>
-    gs[case_eq_thms]>>rveq>>
-    ‘w2n (w + x) MOD w2n (bytes_in_word:'a word) = 0 ⇒ byte_align (w + x) = w + x’
-      by (strip_tac>>
-          fs[byte_align_def,bytes_in_word_def]>>
-          ‘dimindex (:'a) DIV 8 < dimword (:'a)’ by gs[good_dimindex_def,dimword_def]>>
-          fs[LESS_MOD]>>
-          qabbrev_tac ‘X = LOG2 (dimindex (:'a) DIV 8)’>>
-          ‘dimindex (:'a) DIV 8 = 2 ** X’ by gs[]
-
-    ‘w2n (w + x) MOD w2n (bytes_in_word:'a word) = 0 ∧ w + x ∈ s.sh_mdomain
-     ⇒ byte_align (w + x) ∈ s.sh_mdomain’
-    by (strip_tac>>
-      )>>
-    ‘w2n (bytes_in_word :'a word) ≠ 1’
-      by gs[good_dimindex_def,bytes_in_word_def,dimword_def]>>
-    fs[]>>~[‘Halt (FFI_outcome _)’]>>
-             fs[code_installed_def,call_args_def] >>
-             simp[Once labSemTheory.evaluate_def,asm_fetch_def] >>
-             gs[share_mem_op_def,share_mem_load_def,
-                share_mem_store_def,addr_def]>>
-             fs[stackSemTheory.dec_clock_def,get_var_def]>>
-             drule_then drule state_rel_read_reg_FLOOKUP_regs>>strip_tac>>
-             pop_assum $ assume_tac o GSYM>> fs[]>>
-             rpt (CASE_TAC>>fs[])>>
-             fs[state_rel_def,dec_clock_def,inc_pc_def]>>
-             gs[])>>
+    gs[case_eq_thms]>>rveq>>fs[]
+    >>~- ([‘Halt (FFI_outcome _)’],
+          fs[code_installed_def,call_args_def] >>
+          simp[Once labSemTheory.evaluate_def,asm_fetch_def] >>
+          gs[share_mem_op_def,share_mem_load_def,
+             share_mem_store_def,addr_def]>>
+          TRY (qpat_x_assum ‘get_var r _ = _’ assume_tac>>
+               fs[stackSemTheory.dec_clock_def,stackSemTheory.get_var_def]>>
+               drule_then drule state_rel_read_reg_FLOOKUP_regs>>strip_tac>>
+               pop_assum $ assume_tac o GSYM>> fs[])>>
+          rpt (CASE_TAC>>fs[])>>
+          fs[state_rel_def,dec_clock_def,inc_pc_def]>>
+          gs[])>>
 
     TRY (qexists_tac ‘0’>>qexists_tac ‘t1’>>fs[state_rel_def]>>NO_TAC)>>
 
     qpat_x_assum ‘call_args (ShMemOp _ _ _) _ _ _ _ _’ mp_tac
-    >>~-([‘call_args (ShMemOp Load _ _) _ _ _ _ _’],  (* Load *)
+       (* Load *)
+    >>~- ([‘call_args (ShMemOp Load _ _) _ _ _ _ _’],
          strip_tac>>
          qexists_tac`0`>>
                     qexists_tac ‘dec_clock t1
@@ -2404,7 +2391,8 @@ Proof
          conj_tac >> rpt strip_tac>-
           (FULL_CASE_TAC>>gs[APPLY_UPDATE_THM])>>
          metis_tac[])
-    >>~-([‘call_args (ShMemOp Load8 _ _) _ _ _ _ _’],  (* Load *)
+  (* Load *)
+    >>~- ([‘call_args (ShMemOp Load8 _ _) _ _ _ _ _’],
          strip_tac>>
          qexists_tac`0`>>
                     qexists_tac ‘dec_clock t1
@@ -2422,12 +2410,11 @@ Proof
          conj_tac >> rpt strip_tac>-
           (FULL_CASE_TAC>>gs[APPLY_UPDATE_THM])>>
          metis_tac[])>>
-
     (* Store *)
     strip_tac>>
-    qexists_tac`0`>>
+    qexists_tac`0` >>
     qexists_tac`dec_clock t1 with <| io_regs := shift_seq 1 t1.io_regs;
-                           pc:=t1.pc+1; ffi := new_ffi|>`>>
+                           pc:=t1.pc+1; ffi := new_ffi|>` >>
     fs[state_rel_def,stackSemTheory.dec_clock_def,dec_clock_def,inc_pc_def]>>
     fs[code_installed_def,call_args_def] >>
     gs[Once labSemTheory.evaluate_def,asm_fetch_def] >>
@@ -2436,7 +2423,7 @@ Proof
     last_assum $ qspecl_then [‘a’,‘Word x’] assume_tac>>
     last_assum $ qspecl_then [‘r’,‘Word w'’] assume_tac>>
     res_tac>>fs[]>>
-    fs[dec_clock_def,shift_seq_def,inc_pc_def]>>metis_tac[])
+    fs[dec_clock_def,shift_seq_def,inc_pc_def]>>metis_tac[])>>
   conj_tac >- (
     rename [`CodeBufferWrite`] >>
     rw[stackSemTheory.evaluate_def,flatten_def]>>
@@ -2826,6 +2813,7 @@ val make_init_def = Define `
      ; fp_regs    := FEMPTY (*TODO: is this right? *)
      ; memory  := s.mem
      ; mdomain := s.mem_domain
+     ; sh_mdomain := s.shared_mem_domain
      ; use_stack := F
      ; use_store := F
      ; use_alloc := F
@@ -2978,7 +2966,8 @@ Theorem state_rel_make_init:
     EVERY sec_labels_ok s.code ∧
     (∀k i n. k ∈ save_regs ⇒ s.io_regs n i k = NONE) ∧
     (∀k n. k ∈ save_regs ⇒ s.cc_regs n k = NONE) ∧
-    (∀x. x ∈ s.mem_domain ⇒ w2n x MOD (dimindex (:α) DIV 8) = 0)
+    (∀x. x ∈ s.mem_domain ⇒ w2n x MOD (dimindex (:α) DIV 8) = 0)(* ∧
+    (∀x. x ∈ s.shared_mem_domain ⇒ w2n x MOD (dimindex (:α) DIV 8) = 0)*)
 Proof
   fs [state_rel_def,make_init_def,FLOOKUP_regs]
   \\ eq_tac \\ strip_tac \\ fs []
@@ -3439,7 +3428,8 @@ val flatten_line_ok_pre = Q.prove(`
   >>
     pop_assum mp_tac>>EVAL_TAC>>
     pop_assum mp_tac>>EVAL_TAC>>
-    fs[]);
+    fs[]>>
+    Cases_on ‘a’>>EVAL_TAC>>rw[]);
 
 Theorem compile_all_enc_ok_pre:
     byte_offset_ok c 0w ∧
