@@ -371,7 +371,7 @@ Definition share_mem_load_def:
     | NONE => NONE
     | SOME v =>
         if (if n = 0
-            then (w2n v MOD (w2n (bytes_in_word:'a word)) = 0
+            then (w2n v MOD (dimindex (:'a) DIV 8) = 0
                  ∧ (v IN s.shared_mem_domain))
             else byte_align v IN s.shared_mem_domain)
         then
@@ -397,7 +397,7 @@ Definition share_mem_store_def:
        | NONE => NONE
        | SOME v =>
         if (if n = 0
-            then (w2n v MOD (w2n (bytes_in_word:'a word)) = 0
+            then (w2n v MOD (dimindex (:'a) DIV 8) = 0
                  ∧ (v IN s.shared_mem_domain))
             else byte_align v IN s.shared_mem_domain)
            then
