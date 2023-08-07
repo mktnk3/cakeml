@@ -616,6 +616,7 @@ val state_rel_def = Define`
     (* might need to be cc_save_regs *)
     (!k n. k ∈ s.ffi_save_regs ==> t.cc_regs n k = NONE) /\
     (∀x. x ∈ s.mdomain ⇒ w2n x MOD (dimindex (:'a) DIV 8) = 0) ∧
+    (∀x. x ∈ s.sh_mdomain ⇒ w2n x MOD (dimindex (:'a) DIV 8) = 0) ∧
     s.code_buffer = t.code_buffer ∧
     s.compile = (λc p. t.compile c (MAP prog_to_section p)) ∧
     (t.compile_oracle = λn. let (c,p,_)  = s.compile_oracle n in
@@ -2966,8 +2967,8 @@ Theorem state_rel_make_init:
     EVERY sec_labels_ok s.code ∧
     (∀k i n. k ∈ save_regs ⇒ s.io_regs n i k = NONE) ∧
     (∀k n. k ∈ save_regs ⇒ s.cc_regs n k = NONE) ∧
-    (∀x. x ∈ s.mem_domain ⇒ w2n x MOD (dimindex (:α) DIV 8) = 0)(* ∧
-    (∀x. x ∈ s.shared_mem_domain ⇒ w2n x MOD (dimindex (:α) DIV 8) = 0)*)
+    (∀x. x ∈ s.mem_domain ⇒ w2n x MOD (dimindex (:α) DIV 8) = 0) ∧
+    (∀x. x ∈ s.shared_mem_domain ⇒ w2n x MOD (dimindex (:α) DIV 8) = 0)
 Proof
   fs [state_rel_def,make_init_def,FLOOKUP_regs]
   \\ eq_tac \\ strip_tac \\ fs []
@@ -3151,6 +3152,7 @@ Theorem full_make_init_semantics:
    (∀k i n. k ∈ save_regs ⇒ t.io_regs n i k = NONE) ∧
    (∀k n. k ∈ save_regs ⇒ t.cc_regs n k = NONE) ∧
    (∀x. x ∈ t.mem_domain ⇒ w2n x MOD (dimindex(:'a) DIV 8) = 0) ∧
+   (∀x. x ∈ t.shared_mem_domain ⇒ w2n x MOD (dimindex(:'a) DIV 8) = 0) ∧
    good_code sp code ∧
    (∀n. good_code sp (FST(SND(coracle n)))) ∧
    10 <= sp ∧
