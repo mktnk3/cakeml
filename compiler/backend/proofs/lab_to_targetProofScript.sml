@@ -6774,25 +6774,16 @@ Proof
       fs[find_index_INDEX_OF, INDEX_OF_eq_SOME]>>
       rpt (last_x_assum $ irule_at Any)>>fs[]))>>
 
-    (* loads *)
-    TRY (qpat_assum ‘EL _ _ = "MappedRead"’ assume_tac>>
-         pop_assum kall_tac>>
-         qabbrev_tac ‘pc = p + n2w (LENGTH bytes + pos_val s1.pc 0n code2)’>>
-         qabbrev_tac ‘t1_new =
-                      t1 with
-                         <|regs :=
-                           (λn. if n = n' then word_of_bytes F 0w new_bytes
-                                else t1.regs n); pc := pc|>’)>>
-    TRY (qpat_assum ‘EL _ _ = "MappedWrite"’ assume_tac>>
-         pop_assum kall_tac>>
-         qabbrev_tac ‘pc = p + n2w (LENGTH bytes + pos_val s1.pc 0n code2)’>>
-         qabbrev_tac ‘t1_new =
-                      t1 with
-                         <|pc := pc|>’)>>
+    qabbrev_tac ‘pc = p + n2w (LENGTH bytes + pos_val s1.pc 0n code2)’>>
+    qmatch_asmsub_abbrev_tac ‘call_FFI _ _ [nb] _ = _’>>
+    last_x_assum $ qspecl_then [‘ms1’, ‘0’, ‘index’, ‘new_bytes’, ‘t1’, ‘nb’, ‘n''’, ‘c’, ‘n'’, ‘pc’, ‘s1.ffi’, ‘new_ffi’] mp_tac>>
+    (impl_tac>-
+      fs[target_state_rel_def,find_index_INDEX_OF, INDEX_OF_eq_SOME])>>
+    strip_tac>>rfs[Abbr ‘nb’]>>
+    qmatch_asmsub_abbrev_tac ‘target_state_rel mc_conf.target t1_new’>>
     qexistsl [‘code2’, ‘labs’, ‘t1_new’] >> fs[]>>
     fs[Abbr ‘t1_new’]>>
-    pop_assum kall_tac>>
-    pop_assum mp_tac>>
+    qpat_x_assum ‘∀a b c d e f. _ ⇒ _’ mp_tac>>
     ‘call_FFI_rel꙳ s1.ffi s1.ffi’ by fs[cj 1 RTC_RULES]>>
     rpt (disch_then $ drule_at Any)>>
     fs[find_index_INDEX_OF, INDEX_OF_eq_SOME]>>
