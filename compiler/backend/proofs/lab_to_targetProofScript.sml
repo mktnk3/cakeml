@@ -6699,7 +6699,7 @@ Proof
     fs[share_mem_state_rel_def]>>
     qpat_assum `!index' i'. mmio_pcs_min_index _ = SOME i' /\ index' < _ /\
     _ ==> _` $ qspecl_then [`index`, `i`] drule>>
-    
+
    (impl_tac>-(drule find_index_LESS_LENGTH >> fs[]))>>
     strip_tac>>
     `mc_conf.target.get_pc ms1 <> mc_conf.ccache_pc /\
@@ -9321,7 +9321,7 @@ Proof
   qspecl_then [`q`,`c.pos`,`[]`,`[]`] assume_tac get_shmem_info_FST_SND_LENGTH_eq >>
   gvs[] >>
   qpat_x_assum `MAP _ _ = DROP _ _` $
-    assume_tac o Q.AP_TERM `LENGTH` >> 
+    assume_tac o Q.AP_TERM `LENGTH` >>
   gvs[LENGTH_MAP,LENGTH_DROP]
 QED
 
