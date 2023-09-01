@@ -800,36 +800,10 @@ QED
 Theorem set_byte_get_byte_copy:
   8 ≤ dimindex (:'a) ⇒
   set_byte a (get_byte (a:'a word) (w:'a word) be) w' be =
-    word_slice_alt (byte_index a be + 8) (byte_index a be) w ‖
-      word_slice_alt (dimindex (:α)) (byte_index a be + 8) w' ‖
-        word_slice_alt (byte_index a be) 0 w'
-Proof
-  strip_tac>>
-  simp[get_byte_def,set_byte_def]>>
-  imp_res_tac byte_index_offset>>
-  first_x_assum $ qspecl_then [‘be’, ‘a’]  assume_tac>>
-  qmatch_goalsub_abbrev_tac ‘w0 ‖ _ ‖ _’>>
-  ‘w0 = word_slice_alt (byte_index a be + 8) (byte_index a be) w’ by
-    (simp[Abbr ‘w0’]>>
-     ‘byte_index a be + 8 = SUC (byte_index a be + 7)’ by simp[]>>
-     simp[word_slice_alt_word_slice]>>
-     simp[WORD_SLICE_THM]>>
-     qmatch_goalsub_abbrev_tac ‘A ≪ _ = B ≪ _’>>
-     ‘A = B’ by
-       (simp[Abbr ‘A’,Abbr ‘B’]>>
-        simp[w2w_w2w,word_lsr_n2w]>>
-        simp[WORD_BITS_COMP_THM]>>
-        simp[MIN_DEF])>>
-     simp[])>>simp[]>>
-  srw_tac[wordsLib.WORD_BIT_EQ_ss][word_slice_alt_def]
-QED
-
-Theorem set_byte_get_byte_copy:
-  8 ≤ dimindex (:'a) ⇒
-  set_byte a (get_byte (a:'a word) (w:'a word) be) w' be =
-    word_slice (byte_index a be + 7) (byte_index a be) w ‖
-      word_slice (dimindex (:α) - 1) (byte_index a be + 8) w' ‖
-      if byte_index a be = 0 then 0w else word_slice (byte_index a be - 1) 0 w'
+  word_slice (byte_index a be + 7) (byte_index a be) w ‖
+  (if byte_index a be + 8 = dimindex (:'a) then 0w
+   else word_slice (dimindex (:α) - 1) (byte_index a be + 8) w') ‖
+  if byte_index a be = 0 then 0w else word_slice (byte_index a be - 1) 0 w'
 Proof
   strip_tac>>
   simp[get_byte_def,set_byte_def]>>
@@ -847,8 +821,34 @@ Proof
         simp[MIN_DEF])>>
      simp[])>>simp[]>>
   Cases_on ‘byte_index a be’>>fs[]>>
+  Cases_on ‘byte_index a be + 8 = dimindex (:'a)’>>fs[]>>
   srw_tac[wordsLib.WORD_BIT_EQ_ss][word_slice_alt_def]>>
-  Cases_on ‘i < byte_index a be’>>fs[]
+  Cases_on ‘i ≤ n’>>fs[NOT_LESS]
+QED
+
+Theorem set_byte_get_byte':
+  8 ≤ dimindex (:'a) ⇒
+  set_byte a (get_byte (a:'a word) (w:'a word) be) w be = w
+Proof
+  rw[set_byte_get_byte_copy]>-
+   srw_tac[wordsLib.WORD_BIT_EQ_ss][word_slice_alt_def]>-
+   (simp[WORD_SLICE_COMP_THM]>>
+    srw_tac[wordsLib.WORD_BIT_EQ_ss][word_slice_alt_def])>-
+   (rewrite_tac[Once WORD_OR_COMM]>>
+    simp[WORD_SLICE_COMP_THM]>>
+    srw_tac[wordsLib.WORD_BIT_EQ_ss][word_slice_alt_def])>>
+  qmatch_goalsub_abbrev_tac ‘w2 ‖ w3 ‖ w1’>>
+  ‘w3 ‖ w2 ‖ w1 = w’ by
+    (simp[Abbr ‘w2’]>>
+     simp[Abbr ‘w1’]>>
+     simp[WORD_SLICE_COMP_THM]>>
+     simp[Abbr ‘w3’]>>
+     rewrite_tac[Once WORD_OR_COMM]>>
+     drule byte_index_offset>>
+     disch_then $ qspecl_then [‘be’, ‘a’] assume_tac>>
+     simp[WORD_SLICE_COMP_THM]>>
+     srw_tac[wordsLib.WORD_BIT_EQ_ss][word_slice_alt_def])>>
+  fs[]
 QED
 
 Theorem word_slice_alt_zero[simp]:
