@@ -582,41 +582,6 @@ Proof
   fs [state_component_equality]
 QED
 
-Theorem evaluate_clock_mono:
-  !p t res st.
-    evaluate (p,t) = (res,st) ⇒
-    st.clock ≤ t.clock
-Proof
-  recInduct evaluate_ind >> rw [] >>
-  TRY (fs [Once evaluate_def] >> NO_TAC) >>
-  TRY (
-  rename [‘Seq’] >>
-  fs [evaluate_def] >> pairarg_tac >> fs [] >>
-  fs [AllCaseEqs ()] >> rveq >> fs []) >>
-  TRY (
-  rename [‘ExtCall’] >>
-  fs [evaluate_def, AllCaseEqs (), empty_locals_def] >>
-  rveq >> fs []) >>
-  TRY (
-  rename [‘While’] >>
-  qpat_x_assum ‘evaluate (While _ _,_) = _’ mp_tac >>
-  once_rewrite_tac [evaluate_def] >>
-  every_case_tac >> gs [dec_clock_def,empty_locals_def] >>
-  TRY (gs [state_component_equality]) >>
-  TRY  (pairarg_tac >> fs [] >> rveq >> fs []) >>
-  every_case_tac >> gs [] >>
-  TRY strip_tac >> gs []) >>
-  TRY (
-  rename [‘Dec’] >>
-  fs [evaluate_def, AllCaseEqs ()] >>
-  pairarg_tac >> fs [] >> rveq >> fs []) >>
-  fs [evaluate_def, AllCaseEqs () ,
-      set_var_def, mem_store_def,
-      dec_clock_def, empty_locals_def] >> rveq >>
-  fs []
-QED
-
-
 Theorem evaluate_clock_sub:
   !p t res st ck.
     evaluate (p,t) = (res,st with clock := st.clock + ck) ∧
@@ -635,7 +600,7 @@ Proof
       >- (
         gs [state_component_equality] >>
         qpat_x_assum ‘evaluate (c2,s1') = _’ assume_tac >>
-        drule evaluate_clock_mono >>
+        drule evaluate_clock >>
         strip_tac >> gs []) >>
       gs []) >>
     last_x_assum (qspecl_then [‘st’, ‘ck’] mp_tac) >>
@@ -663,10 +628,10 @@ Proof
       pairarg_tac >> fs [] >> rveq >> fs [] >>
       cases_on ‘res'’ >> gs []
       >- (
-        imp_res_tac evaluate_clock_mono >>
+        imp_res_tac evaluate_clock >>
         gs [dec_clock_def]) >>
       cases_on ‘x’ >> gs [] >>
-      imp_res_tac evaluate_clock_mono >>
+      imp_res_tac evaluate_clock >>
       gs [dec_clock_def]) >>
     pairarg_tac >> fs [] >> rveq >> fs [] >>
     pairarg_tac >> fs [] >> rveq >> fs [] >>
@@ -677,7 +642,7 @@ Proof
       impl_tac
       >- (
         gs [state_component_equality] >>
-        imp_res_tac evaluate_clock_mono >>
+        imp_res_tac evaluate_clock >>
         gs []) >>
       strip_tac >> rgs []) >>
     cases_on ‘x’ >> gs [dec_clock_def] >> (
@@ -685,7 +650,7 @@ Proof
     impl_tac
     >- (
       gs [state_component_equality] >>
-      imp_res_tac evaluate_clock_mono >>
+      imp_res_tac evaluate_clock >>
       gs []) >>
     strip_tac >> gs [] >> rveq >> gs [state_component_equality])) >>
   TRY (
@@ -727,7 +692,7 @@ Proof
     TOP_CASE_TAC >> gs []
     >- (
       strip_tac >> rveq >> gs [eval_upd_clock_eq, opt_mmap_eval_upd_clock_eq1] >>
-      imp_res_tac evaluate_clock_mono >>
+      imp_res_tac evaluate_clock >>
       gs [dec_clock_def] >>
       first_x_assum (qspecl_then [‘st’, ‘ck’] mp_tac) >>
       impl_tac >- gs [] >>
@@ -740,7 +705,7 @@ Proof
       impl_tac
       >- gs [state_component_equality] >>
       strip_tac >> gs [] >>
-      imp_res_tac evaluate_clock_mono >>
+      imp_res_tac evaluate_clock >>
       gs [dec_clock_def, state_component_equality])
     >- (
       strip_tac >> rveq >>
@@ -749,7 +714,7 @@ Proof
       impl_tac
       >- gs [state_component_equality] >>
       strip_tac >> gs [] >>
-      imp_res_tac evaluate_clock_mono >>
+      imp_res_tac evaluate_clock >>
       gs [dec_clock_def, state_component_equality])
     >- (
       strip_tac >> rveq >>
@@ -758,7 +723,7 @@ Proof
       impl_tac
       >- gs [state_component_equality] >>
       strip_tac >> gs [] >>
-      imp_res_tac evaluate_clock_mono >>
+      imp_res_tac evaluate_clock >>
       gs [dec_clock_def, state_component_equality])
     >- (
       TOP_CASE_TAC >> gs []
@@ -769,7 +734,7 @@ Proof
         impl_tac
         >- gs [state_component_equality] >>
         strip_tac >> gs [] >>
-        imp_res_tac evaluate_clock_mono >>
+        imp_res_tac evaluate_clock >>
         gs [dec_clock_def, state_component_equality]) >>
       TOP_CASE_TAC >> gs []>>
       TOP_CASE_TAC >> gs []
@@ -781,7 +746,7 @@ Proof
         impl_tac
         >- gs [state_component_equality] >>
         strip_tac >> gs [] >>
-        imp_res_tac evaluate_clock_mono >>
+        imp_res_tac evaluate_clock >>
         gs [dec_clock_def, state_component_equality]) >>
       strip_tac >> rveq >>
       gs [eval_upd_clock_eq, opt_mmap_eval_upd_clock_eq1, empty_locals_def,
@@ -790,7 +755,7 @@ Proof
       impl_tac
       >- gs [state_component_equality] >>
       strip_tac >> gs [] >>
-      imp_res_tac evaluate_clock_mono >>
+      imp_res_tac evaluate_clock >>
       gs [dec_clock_def, state_component_equality])
     >- (
       TOP_CASE_TAC >> gs []
@@ -801,7 +766,7 @@ Proof
         impl_tac
         >- gs [state_component_equality] >>
         strip_tac >> gs [] >>
-        imp_res_tac evaluate_clock_mono >>
+        imp_res_tac evaluate_clock >>
         gs [dec_clock_def, state_component_equality]) >>
       TOP_CASE_TAC >> gs []>>
       TOP_CASE_TAC >> gs []
@@ -813,7 +778,7 @@ Proof
         impl_tac
         >- gs [state_component_equality] >>
         strip_tac >> gs [] >>
-        imp_res_tac evaluate_clock_mono >>
+        imp_res_tac evaluate_clock >>
         gs [dec_clock_def, state_component_equality]) >>
       TOP_CASE_TAC >> gs [] >>
       TOP_CASE_TAC >> gs []>>
@@ -828,7 +793,7 @@ Proof
           impl_tac
           >- gs [state_component_equality] >>
           strip_tac >> gs [] >>
-          imp_res_tac evaluate_clock_mono >>
+          imp_res_tac evaluate_clock >>
           gs [dec_clock_def, state_component_equality]) >>
         reverse TOP_CASE_TAC >> gs []
         >- (
@@ -839,7 +804,7 @@ Proof
           impl_tac
           >- gs [state_component_equality] >>
           strip_tac >> gs [] >>
-          imp_res_tac evaluate_clock_mono >>
+          imp_res_tac evaluate_clock >>
           gvs [dec_clock_def, state_component_equality] >>
           TOP_CASE_TAC >> gvs []) >>
         strip_tac >> rveq >>
@@ -849,14 +814,14 @@ Proof
         impl_tac
         >- (
           gs [state_component_equality] >>
-          imp_res_tac evaluate_clock_mono >>
+          imp_res_tac evaluate_clock >>
           gs [dec_clock_def, state_component_equality]) >>
         strip_tac >> gs [] >>
         first_x_assum (qspecl_then [‘st’, ‘ck’] mp_tac) >>
         impl_tac
         >- gs [state_component_equality] >>
         strip_tac >> gs [] >>
-        imp_res_tac evaluate_clock_mono >>
+        imp_res_tac evaluate_clock >>
         gs [dec_clock_def, state_component_equality]) >>
       strip_tac >> rveq >>
       gs [eval_upd_clock_eq, opt_mmap_eval_upd_clock_eq1, empty_locals_def,
@@ -865,10 +830,10 @@ Proof
       impl_tac
       >- (
         gs [state_component_equality] >>
-        imp_res_tac evaluate_clock_mono >>
+        imp_res_tac evaluate_clock >>
         gs [dec_clock_def, state_component_equality]) >>
       strip_tac >> gs [] >>
-      imp_res_tac evaluate_clock_mono >>
+      imp_res_tac evaluate_clock >>
       gs [dec_clock_def, state_component_equality]) >>
     strip_tac >> rveq >>
     gs [eval_upd_clock_eq, opt_mmap_eval_upd_clock_eq1, empty_locals_def, dec_clock_def] >>
@@ -876,10 +841,10 @@ Proof
     impl_tac
     >- (
       gs [state_component_equality] >>
-      imp_res_tac evaluate_clock_mono >>
+      imp_res_tac evaluate_clock >>
       gs [dec_clock_def, state_component_equality]) >>
     strip_tac >> gs [] >>
-    imp_res_tac evaluate_clock_mono >>
+    imp_res_tac evaluate_clock >>
     gs [dec_clock_def, state_component_equality]) >>
   gs [evaluate_def, AllCaseEqs ()] >> rveq >>
   gs [eval_upd_clock_eq, state_component_equality, empty_locals_def, dec_clock_def]
