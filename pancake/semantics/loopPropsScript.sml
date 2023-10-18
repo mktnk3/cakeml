@@ -854,7 +854,7 @@ Proof
       call_env_def, dec_clock_def,
       sh_mem_op_def,sh_mem_load_def,sh_mem_store_def,
       DefnBase.one_line_ify NONE loop_arith_def] >> rveq >>
-  fs [state_component_equality]
+  gvs [state_component_equality,wordSemTheory.theWord_def,THE_DEF]
 QED
 
 Theorem evaluate_nested_seq_comb_seq:
