@@ -33,10 +33,7 @@ Definition comp_def:
                           case lookup n l of
                            | NONE => l
                            | _ => delete n l)) /\
-  (comp l (ShMem op n e) = (ShMem op n e, LN
-(*                          case lookup n l of
-                           | NONE => l
-                           | _ => (if is_load op then delete n l else l)*))) /\
+  (comp l (ShMem op n e) = (ShMem op n e, LN)) /\
   (comp l (LoadByte m n) = (LoadByte m n,
                             case lookup n l of
                              | NONE => l
