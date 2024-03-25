@@ -653,7 +653,7 @@ Proof
   Induct_on ‘ls’>>rw[]>>
   simp[lab_to_targetTheory.to_inc_shmem_info_def,
        lab_to_targetTheory.to_shmem_info_def,
-       lab_to_targetTheory.shmem_rec_component_equality]>>
+       lab_to_targetTheory.shmem_info_component_equality]>>
   Cases_on ‘h.access_addr’>>fs[]
 QED
 
@@ -661,7 +661,7 @@ Theorem to_inc_shmem_info_to_shmem_info_inv[simp]:
   EVERY (λh. h.entry_pc < dimword (:α) ∧
              h.addr_off < dimword (:α) ∧
              h.exit_pc < dimword (:α)) ls ⇒
-  MAP to_inc_shmem_info ((MAP to_shmem_info ls):'a shmem_info) = ls
+  MAP to_inc_shmem_info ((MAP to_shmem_info ls):'a shmem_info list) = ls
 Proof
   Induct_on ‘ls’>>rw[]>>
   simp[lab_to_targetTheory.to_inc_shmem_info_def,

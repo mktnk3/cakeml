@@ -8341,7 +8341,7 @@ val mc_conf_ok_def = Define`
 
 Theorem get_shmem_info_APPEND:
 !secs pos ffi_names shmem_info ffis1 ffis2 info1 info2 new_ffi_names new_shmem_info.
-  get_shmem_info secs pos ffi_names (shmem_info: 'a shmem_info) =
+  get_shmem_info secs pos ffi_names (shmem_info: 'a shmem_info list) =
     (new_ffi_names,new_shmem_info) /\
   ffi_names = ffis1 ++ ffis2 /\
   shmem_info = info1 ++ info2 ==>
@@ -8356,10 +8356,10 @@ Proof
 QED
 
 Theorem get_shmem_info_PREPEND:
-  get_shmem_info secs pos ffi_names (shmem_info: 'a shmem_info) =
+  get_shmem_info secs pos ffi_names (info: 'a shmem_info list) =
     (new_ffi_names,new_shmem_info) ==>
   new_ffi_names = ffi_names ++ (FST $ get_shmem_info secs pos [] []) /\
-  new_shmem_info = shmem_info ++ (SND $ get_shmem_info secs pos [] [])
+  new_shmem_info = info ++ (SND $ get_shmem_info secs pos [] [])
 Proof
   strip_tac >>
   irule get_shmem_info_APPEND >>
@@ -8418,15 +8418,15 @@ Proof
 QED
 
 Theorem get_shmem_info_thm:
-  !secs p ffi_names shmem_info p'.
+  !secs p ffi_names info p'.
   all_enc_ok c labs ffis p' secs ==>
-  get_shmem_info secs p ffi_names shmem_info =
+  get_shmem_info secs p ffi_names info =
     let (new_ffis, new_info) =
       UNZIP $ FLAT $
       MAP (line_to_info secs p) $
       GENLIST (\i. (i, asm_fetch_aux i secs)) $
       num_pcs secs
-    in (ffi_names ++ new_ffis, shmem_info ++ new_info)
+    in (ffi_names ++ new_ffis, info ++ new_info)
 Proof
   ho_match_mp_tac get_shmem_info_ind >>
   rpt strip_tac
@@ -8446,7 +8446,7 @@ Proof
     metis_tac[line_to_info_hd_Label]
   )
   >- (
-    `~is_Label (Asm(ShareMem m r ad) bytes shmem_info)`
+    `~is_Label (Asm(ShareMem m r ad) bytes info)`
       by simp[is_Label_def] >>
     gvs[num_pcs_def,combinTheory.o_DEF,
       GENLIST_asm_fetch_aux_next] >>
@@ -8701,7 +8701,7 @@ Proof
     Cases_on `get_shmem_info code2 p [] []` >>
     gvs[EL_ZIP] >>
     qpat_x_assum `_ = EL n r'` $ assume_tac o PURE_REWRITE_RULE[Once EQ_SYM_EQ] >>
-    gvs[shmem_rec_accessors] >>
+    gvs[shmem_info_accessors] >>
     drule_all all_enc_ok_asm_fetch_aux_IMP_line_ok >>
     disch_then assume_tac >>
     gvs[line_ok_def] >>
@@ -8860,10 +8860,10 @@ val IMP_state_rel_make_init = Q.prove(
       SOME (code2,labs) /\
    good_init_state mc_conf ms (prog_to_bytes code2)
       cbspace t m dm sdm io_regs cc_regs /\
-   get_shmem_info code2 0 [] [] = (new_ffi_names, shmem_info) /\
+   get_shmem_info code2 0 [] [] = (new_ffi_names, info) /\
    new_shmem_info = MAP (\rec. rec with
     <|entry_pc:= mc_conf.target.get_pc ms + rec.entry_pc
-     ;exit_pc:= mc_conf.target.get_pc ms + rec.exit_pc|>) shmem_info /\
+     ;exit_pc:= mc_conf.target.get_pc ms + rec.exit_pc|>) info /\
    DROP i mc_conf.ffi_names = new_ffi_names /\
    mmio_pcs_min_index mc_conf.ffi_names = SOME i /\
    MAP (\rec. rec.entry_pc) new_shmem_info = DROP i (mc_conf.ffi_entry_pcs) /\
@@ -8887,7 +8887,7 @@ val IMP_state_rel_make_init = Q.prove(
     TOP_CASE_TAC>>fs[lookup_def])
   \\ qabbrev_tac `new_shmem_info=MAP (\rec. rec with
       <|entry_pc:=mc_conf.target.get_pc ms + rec.entry_pc
-       ;exit_pc:=mc_conf.target.get_pc ms + rec.exit_pc|>) shmem_info`
+       ;exit_pc:=mc_conf.target.get_pc ms + rec.exit_pc|>) info`
   \\ rw[]
   \\ fs[state_rel_def,
         word_loc_val_def,
@@ -8905,13 +8905,13 @@ val IMP_state_rel_make_init = Q.prove(
         fs[Abbr ‘new_shmem_info’]>>
         fs[MAP_MAP_o,o_DEF]>>
         qmatch_goalsub_abbrev_tac ‘ZIP (l1,MAP ff _)’>>
-        ‘LENGTH l1 = LENGTH (MAP ff shmem_info)’ by fs[Abbr ‘l1’,LENGTH_GENLIST]>>
+        ‘LENGTH l1 = LENGTH (MAP ff info)’ by fs[Abbr ‘l1’,LENGTH_GENLIST]>>
         fs[ALOOKUP_ZIP_MAP_SND]>>
-        ‘LENGTH shmem_info = LENGTH (DROP i mc_conf.ffi_entry_pcs)’
-          by (qpat_assum ‘MAP _ shmem_info = DROP _ _’ (fn h => rewrite_tac[GSYM h])>>
+        ‘LENGTH info = LENGTH (DROP i mc_conf.ffi_entry_pcs)’
+          by (qpat_assum ‘MAP _ info = DROP _ _’ (fn h => rewrite_tac[GSYM h])>>
               simp[])>>
         rw[Abbr ‘l1’]
-        >- (‘shmem_info ≠ []’ by (strip_tac>>fs[])>>
+        >- (‘info ≠ []’ by (strip_tac>>fs[])>>
             irule_at Any ALOOKUP_ALL_DISTINCT_MEM>>
             simp[MEM_ZIP,MAP_ZIP,ALL_DISTINCT_GENLIST,EL_GENLIST]>>
             qexists_tac ‘index - i’>>
@@ -9015,9 +9015,9 @@ val IMP_state_rel_make_init = Q.prove(
     strip_tac >>
     reverse $ rw[EVERY_EL]
    >- (
-      qpat_abbrev_tac `info = get_shmem_info _ _ _ _` >>
+      qpat_abbrev_tac `info' = get_shmem_info _ _ _ _` >>
       first_x_assum $ assume_tac o GSYM o ONCE_REWRITE_RULE[markerTheory.Abbrev_def] >>
-      Cases_on `info` >>
+      Cases_on `info'` >>
       drule $ GEN_ALL get_shmem_info_PREPEND >>
       gvs[] >>
       strip_tac >>
@@ -9025,7 +9025,7 @@ val IMP_state_rel_make_init = Q.prove(
       disch_then $ qspec_then `w2n (mc_conf.target.get_pc ms)` mp_tac >>
       strip_tac >>
       gvs[markerTheory.Abbrev_def] >>
-      metis_tac[TAKE_DROP] ) >>
+      qpat_x_assum ‘DROP _ _ = _’ (fn h => simp[GSYM h])) >>
     first_x_assum $ mp_tac o GSYM >>
     spose_not_then assume_tac >>fs[]>>
     qpat_x_assum`∀s. EL _ (TAKE i mc_conf.ffi_names) ≠ _` $ mp_tac >>
@@ -9051,7 +9051,7 @@ val IMP_state_rel_make_init = Q.prove(
       drule find_index_shift
       \\ fs[]
       \\ disch_then $ qspec_then `i` assume_tac
-      \\ gvs[ELIM_UNCURRY,shmem_rec_component_equality]>>
+      \\ gvs[ELIM_UNCURRY,shmem_info_component_equality]>>
       irule ALOOKUP_ALL_DISTINCT_MEM>>
       qmatch_goalsub_abbrev_tac ‘ZIP (l1, l2)’>>
       ‘LENGTH l1 = LENGTH l2’ by (unabbrev_all_tac>>fs[LENGTH_GENLIST,LENGTH_MAP])>>
@@ -9066,7 +9066,7 @@ val IMP_state_rel_make_init = Q.prove(
       strip_tac
       \\ drule_then assume_tac (iffLR find_index_NOT_MEM)
       \\ pop_assum $ qspec_then `0` assume_tac
-      \\ gvs[ELIM_UNCURRY,shmem_rec_component_equality,LENGTH_TAKE]
+      \\ gvs[ELIM_UNCURRY,shmem_info_component_equality,LENGTH_TAKE]
     )
     \\ `LENGTH (prog_to_bytes code2) < dimword (:α)` by gvs[]
     \\ drule $ GEN_ALL asm_fetch_NOT_ffi_entry_pcs
