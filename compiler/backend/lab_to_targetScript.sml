@@ -315,14 +315,12 @@ QED
 
 (* compile labels *)
 val _ = Datatype`
-  shmem_rec = <| entry_pc: 'a word
+  shmem_info = <| entry_pc: 'a word
                ; nbytes: word8
                ; access_addr: 'a addr
                ; reg: num
                ; exit_pc: 'a word
                |>`;
-
-Type shmem_info = ``:'a shmem_rec list``;
 
 val _ = Datatype`
   config = <| labels : num num_map num_map
@@ -334,7 +332,7 @@ val _ = Datatype`
             (* shmem_info is
             * a list of (entry pc, no. of bytes, address of the shared memory, register
             * to be load/store and the end pc)s for each share memory access *)
-            ; shmem_extra: 'a shmem_info
+            ; shmem_extra: 'a shmem_info list
             ; hash_size : num
             |>`;
 
@@ -353,7 +351,7 @@ val find_ffi_names_def = Define `
    | _ => find_ffi_names (Section k xs::rest)))`
 
 Definition get_memop_info_def:
-  get_memop_info Load = (MappedRead, 0w) /\
+  get_memop_info Load = (MappedRead, 0w:word8) /\
   (* get_memop_info Load32 = (MappedRead,4w) /\ *)
   get_memop_info Load8 = (MappedRead,1w) /\
   get_memop_info Store = (MappedWrite, 0w) /\
@@ -364,26 +362,26 @@ End
 (* produce a list of ffi_names for shared memory instructions and
   a list of shmem_infos (e.g. pc of the shared memory instruction) *)
 Definition get_shmem_info_def:
-  (get_shmem_info [] pos ffi_names (shmem_info: 'a shmem_info) =
-    (ffi_names, shmem_info)) /\
-  (get_shmem_info (Section k []::rest) pos ffi_names shmem_info =
-    get_shmem_info rest pos ffi_names shmem_info) /\
-  (get_shmem_info (Section k ((Label _ _ _)::xs)::rest) pos ffi_names shmem_info =
-    get_shmem_info (Section k xs::rest) pos ffi_names shmem_info) /\
+  (get_shmem_info [] pos ffi_names (info: 'a shmem_info list) =
+    (ffi_names, info)) /\
+  (get_shmem_info (Section k []::rest) pos ffi_names info =
+    get_shmem_info rest pos ffi_names info) /\
+  (get_shmem_info (Section k ((Label _ _ _)::xs)::rest) pos ffi_names info =
+    get_shmem_info (Section k xs::rest) pos ffi_names info) /\
   (get_shmem_info (Section k ((Asm (ShareMem m r ad) bytes _)::xs)::rest) pos
-  ffi_names shmem_info =
+  ffi_names info =
     let (name,nb) = get_memop_info m in
     get_shmem_info (Section k xs::rest) (pos+LENGTH bytes) (ffi_names ++ [SharedMem name])
-      (shmem_info ++ [
+      (info ++ [
         <|entry_pc:=n2w pos
         ; nbytes:=nb
         ;access_addr:=ad
         ;reg:=r
         ;exit_pc:=n2w $ pos+LENGTH bytes|>])) /\
-  (get_shmem_info (Section k ((LabAsm _ _ bytes _)::xs)::rest) pos ffi_names shmem_info =
-    get_shmem_info (Section k xs::rest) (pos+LENGTH bytes) ffi_names shmem_info) /\
-  (get_shmem_info (Section k ((Asm _ bytes _)::xs)::rest) pos ffi_names shmem_info =
-    get_shmem_info (Section k xs::rest) (pos+LENGTH bytes) ffi_names shmem_info)
+  (get_shmem_info (Section k ((LabAsm _ _ bytes _)::xs)::rest) pos ffi_names info =
+    get_shmem_info (Section k xs::rest) (pos+LENGTH bytes) ffi_names info) /\
+  (get_shmem_info (Section k ((Asm _ bytes _)::xs)::rest) pos ffi_names info =
+    get_shmem_info (Section k xs::rest) (pos+LENGTH bytes) ffi_names info)
 End
 
 (*
