@@ -432,11 +432,13 @@ val installed_def = Define`
        (fun2set (m,byte_aligned ∩ bitmaps_dm)) ∧
       ffi_names = SOME mc_conf.ffi_names /\
    (!i. mmio_pcs_min_index mc_conf.ffi_names = SOME i ==>
-     MAP (\rec. rec.entry_pc + mc_conf.target.get_pc ms) shmem_extra =
+     MAP (\rec. FST rec + mc_conf.target.get_pc ms) shmem_extra =
       DROP i mc_conf.ffi_entry_pcs /\
      mc_conf.mmio_info = ZIP (GENLIST (λindex. index + i) (LENGTH shmem_extra),
-                              (MAP (\rec. (rec.nbytes, rec.access_addr, rec.reg,
-                                           rec.exit_pc + mc_conf.target.get_pc ms))
+                              (MAP (\rec. ((SND rec).nbytes,
+                                           (SND rec).access_addr,
+                                           (SND rec).reg,
+                                           (SND rec).exit_pc + mc_conf.target.get_pc ms))
                                    shmem_extra)) /\
     cbspace + LENGTH bytes + ffi_offset * (i + 3) < dimword (:'a))`
 

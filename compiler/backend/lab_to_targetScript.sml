@@ -315,12 +315,14 @@ QED
 
 (* compile labels *)
 val _ = Datatype`
-  shmem_info = <| entry_pc: 'a word
-               ; nbytes: word8
+  shmem_rec = <| (*entry_pc: 'a word
+               ;*) nbytes: word8
                ; access_addr: 'a addr
                ; reg: num
                ; exit_pc: 'a word
                |>`;
+
+Type shmem_info = “:('a word # 'a shmem_rec)”;
 
 val _ = Datatype`
   config = <| labels : num num_map num_map
@@ -373,11 +375,11 @@ Definition get_shmem_info_def:
     let (name,nb) = get_memop_info m in
     get_shmem_info (Section k xs::rest) (pos+LENGTH bytes) (ffi_names ++ [SharedMem name])
       (info ++ [
-        <|entry_pc:=n2w pos
-        ; nbytes:=nb
+      (n2w pos,
+        <|nbytes:=nb
         ;access_addr:=ad
         ;reg:=r
-        ;exit_pc:=n2w $ pos+LENGTH bytes|>])) /\
+        ;exit_pc:=n2w $ pos+LENGTH bytes|>)])) /\
   (get_shmem_info (Section k ((LabAsm _ _ bytes _)::xs)::rest) pos ffi_names info =
     get_shmem_info (Section k xs::rest) (pos+LENGTH bytes) ffi_names info) /\
   (get_shmem_info (Section k ((Asm _ bytes _)::xs)::rest) pos ffi_names info =
@@ -459,21 +461,21 @@ End
 
 Definition to_inc_shmem_info_def:
   to_inc_shmem_info info =
-  <| entry_pc := w2n info.entry_pc
-     ; nbytes := info.nbytes
-     ; addr_reg := (case info.access_addr of Addr r off => r)
-     ; addr_off := (case info.access_addr of Addr r off => w2n off)
-     ; reg := info.reg
-     ; exit_pc := w2n info.exit_pc |>
+  <| entry_pc := w2n (FST info)
+     ; nbytes := (SND info).nbytes
+     ; addr_reg := (case (SND info).access_addr of Addr r off => r)
+     ; addr_off := (case (SND info).access_addr of Addr r off => w2n off)
+     ; reg := (SND info).reg
+     ; exit_pc := w2n (SND info).exit_pc |>
 End
 
 Definition to_shmem_info_def:
   to_shmem_info ninfo =
-  <| entry_pc := n2w ninfo.entry_pc
-     ; nbytes := ninfo.nbytes
+  (n2w ninfo.entry_pc,
+    <| nbytes := ninfo.nbytes
      ; access_addr := Addr ninfo.addr_reg (n2w ninfo.addr_off)
      ; reg := ninfo.reg
-     ; exit_pc := n2w ninfo.exit_pc |>
+     ; exit_pc := n2w ninfo.exit_pc |>)
 End
 
 Definition config_to_inc_config_def:

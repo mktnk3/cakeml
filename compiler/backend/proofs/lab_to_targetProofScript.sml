@@ -8371,11 +8371,11 @@ Definition line_to_info_def:
     SOME (Asm (ShareMem m r ad) bytes l) =>
       let (name,nb) = get_memop_info m in
       [(SharedMem name,
-       <|entry_pc := n2w (pos_val (FST x) p secs)
-        ;nbytes:=nb
-        ;access_addr:=ad
-        ;reg:=r
-        ;exit_pc:=n2w (pos_val (FST x) p secs + LENGTH bytes)|>
+        (n2w (pos_val (FST x) p secs),
+         <|nbytes:=nb
+           ;access_addr:=ad
+           ;reg:=r
+           ;exit_pc:=n2w (pos_val (FST x) p secs + LENGTH bytes)|>):'a shmem_info
         )]
     | _ => []
 End
@@ -8509,11 +8509,11 @@ Theorem MEM_get_shmem_info:
   get_memop_info op = (q,r:word8) ==>
   MEM
     (SharedMem q,
-    <|entry_pc:=n2w (pos_val pc p code2)
-      ;nbytes:=r
-      ;access_addr:=a
-      ;reg:=re
-      ;exit_pc:=n2w (pos_val pc (p+LENGTH inst') code2)|>)
+     (n2w (pos_val pc p code2),
+      <|nbytes:=r
+        ;access_addr:=a
+        ;reg:=re
+        ;exit_pc:=n2w (pos_val pc (p+LENGTH inst') code2)|>))
     (ZIP (get_shmem_info code2 p [] []))
 Proof
   rw[] >>
@@ -8536,7 +8536,7 @@ Theorem get_shmem_info_ALL_DISTINCT:
   LENGTH (prog_to_bytes code2) < dimword (:'a) /\
   enc_ok c /\
   all_enc_ok c labs ffis p' (code2: 'a sec list) ==>
-  ALL_DISTINCT (MAP (\rec. rec.entry_pc) $ SND $ get_shmem_info code2 p [] [])
+  ALL_DISTINCT (MAP FST $ SND $ get_shmem_info code2 p [] [])
 Proof
   rw[] >>
   drule get_shmem_info_thm >>
@@ -8591,15 +8591,16 @@ Proof
   gvs[line_to_info_def] >>
   Cases_on `accum` >>
   gvs[AllCaseEqs()] >>
-  ntac 3 TOP_CASE_TAC >>
+  rpt TOP_CASE_TAC >>
   gvs[ELIM_UNCURRY]
 QED
 
 Theorem line_to_info_offset_SND_eq:
-  MAP SND (line_to_info code p accum) = MAP (\x. SND x with
-    <|entry_pc := n2w p + (SND x).entry_pc
-     ;exit_pc := n2w p + (SND x).exit_pc |>)
-    (line_to_info code 0 accum)
+  MAP SND (line_to_info code p accum) =
+    MAP (\x. (n2w p + FST (SND x),
+              SND (SND x) with
+              exit_pc := n2w p + (SND (SND x)).exit_pc))
+        (line_to_info code 0 accum)
 Proof
   gvs[line_to_info_def] >>
   CASE_TAC >>
@@ -8613,9 +8614,11 @@ QED
 Theorem get_shmem_info_init_pc_offset:
   all_enc_ok c labs ffis p' code ==>
   FST (get_shmem_info code 0 [] []) = FST (get_shmem_info code p [] []) /\
-  MAP (\rec. rec with
-    <|entry_pc:=n2w p + rec.entry_pc
-     ;exit_pc:=n2w p + rec.exit_pc|>) (SND $ get_shmem_info code 0 [] []) =
+  MAP (\rec.
+         (n2w p + FST rec,
+          SND rec with
+              exit_pc:=n2w p + (SND rec).exit_pc))
+      (SND $ get_shmem_info code 0 [] []) =
   SND (get_shmem_info code p [] [])
 Proof
   strip_tac >>
@@ -8651,20 +8654,20 @@ Theorem get_shmem_info_ok_lemma:
     (asm_fetch_aux pc code2 = SOME (Asm (ShareMem op re a) inst len) /\
     mmio_pcs_min_index new_ffi_names = SOME i) ==>
     (?index.
-      find_index (n2w p + n2w (pos_val pc 0 code2)) (MAP (\rec. rec.entry_pc) new_shmem_info) 0 =
+      find_index (n2w p + n2w (pos_val pc 0 code2)) (MAP FST new_shmem_info) 0 =
         SOME index /\
       (let (name, nb) = get_memop_info op in
         EL (index+i) new_ffi_names = SharedMem name /\
         EL index new_shmem_info =
-          <|entry_pc := (EL index new_shmem_info).entry_pc
-           ;nbytes := nb
+        (FST (EL index new_shmem_info),
+          <|nbytes := nb
            ;access_addr := a
            ;reg := re
-           ;exit_pc :=n2w p + n2w (pos_val pc 0 code2 + len)|>))) /\
+           ;exit_pc :=n2w p + n2w (pos_val pc 0 code2 + len)|>)))) /\
   (!pc line.
       asm_fetch_aux pc code2 = SOME line /\
       (!op re a inst len. line <> Asm (ShareMem op re a) inst len) ==>
-      DISJOINT (set (MAP (\rec. rec.entry_pc) new_shmem_info))
+      DISJOINT (set (MAP FST new_shmem_info))
         {n2w p + n2w a + n2w (pos_val pc 0 code2) |
           a < LENGTH (line_bytes line)})
 Proof
@@ -8701,7 +8704,7 @@ Proof
     Cases_on `get_shmem_info code2 p [] []` >>
     gvs[EL_ZIP] >>
     qpat_x_assum `_ = EL n r'` $ assume_tac o PURE_REWRITE_RULE[Once EQ_SYM_EQ] >>
-    gvs[shmem_info_accessors] >>
+    gvs[shmem_rec_accessors] >>
     drule_all all_enc_ok_asm_fetch_aux_IMP_line_ok >>
     disch_then assume_tac >>
     gvs[line_ok_def] >>
@@ -8786,6 +8789,7 @@ Proof
   gvs[addressTheory.word_arith_lemma1]
 QED
 
+(* move to misc *)
 Theorem list_subset_refl:
 !xs.
   list_subset xs xs
@@ -8797,6 +8801,7 @@ Proof
   simp[]
 QED
 
+(* move to misc *)
 Theorem list_subset_TAKE:
 !i xs.
   list_subset (TAKE i xs) xs
@@ -8811,6 +8816,7 @@ Proof
   gvs[]
 QED
 
+(* move to misc *)
 Theorem list_subset_trans:
   list_subset a b /\ list_subset b c ==>
   list_subset a c
@@ -8824,7 +8830,7 @@ QED
 
 Theorem genlist_line_to_info_entry_pc_max:
   all_enc_ok c labs ffis p' code2 /\ enc_ok c ==>
-  EVERY (\x. w2n (SND x).entry_pc < pos_val (num_pcs code2) 0 code2)
+  EVERY (\x. w2n (FST (SND x)) < pos_val (num_pcs code2) 0 code2)
     (FLAT (GENLIST
       (λi. line_to_info code2 0 (i,asm_fetch_aux i code2))
       (num_pcs code2)))
@@ -8861,16 +8867,20 @@ val IMP_state_rel_make_init = Q.prove(
    good_init_state mc_conf ms (prog_to_bytes code2)
       cbspace t m dm sdm io_regs cc_regs /\
    get_shmem_info code2 0 [] [] = (new_ffi_names, info) /\
-   new_shmem_info = MAP (\rec. rec with
-    <|entry_pc:= mc_conf.target.get_pc ms + rec.entry_pc
-     ;exit_pc:= mc_conf.target.get_pc ms + rec.exit_pc|>) info /\
+   new_shmem_info = MAP (\rec.
+             (mc_conf.target.get_pc ms + FST rec,
+              SND rec with exit_pc:= mc_conf.target.get_pc ms
+                                     + (SND rec).exit_pc))
+             info /\
    DROP i mc_conf.ffi_names = new_ffi_names /\
    mmio_pcs_min_index mc_conf.ffi_names = SOME i /\
-   MAP (\rec. rec.entry_pc) new_shmem_info = DROP i (mc_conf.ffi_entry_pcs) /\
+   MAP FST new_shmem_info = DROP i (mc_conf.ffi_entry_pcs) /\
    (mc_conf.mmio_info = ZIP (GENLIST (λindex. index + i) (LENGTH new_shmem_info),
-                              (MAP (\rec. (rec.nbytes, rec.access_addr, rec.reg,
-                                           rec.exit_pc))
-                                   new_shmem_info))) /\
+                             MAP (\rec. ((SND rec).nbytes,
+                                          (SND rec).access_addr,
+                                          (SND rec).reg,
+                                          (SND rec).exit_pc))
+                                   new_shmem_info)) /\
    no_install_or_no_share_mem code mc_conf.ffi_names /\
    (!bn. bn < cbspace ==>
       ~MEM (n2w bn + n2w (LENGTH (prog_to_bytes code2)) +
@@ -8885,9 +8895,11 @@ val IMP_state_rel_make_init = Q.prove(
     fs[good_code_def,mc_conf_ok_def]
     \\ rw[lab_lookup_def]>>
     TOP_CASE_TAC>>fs[lookup_def])
-  \\ qabbrev_tac `new_shmem_info=MAP (\rec. rec with
-      <|entry_pc:=mc_conf.target.get_pc ms + rec.entry_pc
-       ;exit_pc:=mc_conf.target.get_pc ms + rec.exit_pc|>) info`
+  \\ qabbrev_tac `new_shmem_info=
+     MAP (\rec. (mc_conf.target.get_pc ms + FST rec,
+                 SND rec with
+                     exit_pc:=mc_conf.target.get_pc ms
+                              + (SND rec).exit_pc)) info`
   \\ rw[]
   \\ fs[state_rel_def,
         word_loc_val_def,
@@ -8979,6 +8991,7 @@ val IMP_state_rel_make_init = Q.prove(
       asm_rewrite_tac[LENGTH_DROP] >>
       simp[]
     ) >>
+    fs[ZIP_GENLIST1]>>
     gvs[EL_MAP,Abbr`offset_func`] >>
     drule_all genlist_line_to_info_entry_pc_max >>
     strip_tac >>
@@ -9036,7 +9049,7 @@ val IMP_state_rel_make_init = Q.prove(
     qpat_x_assum `!pc op re a inst len. asm_fetch_aux _ _ = _ ==> ?i._` $ imp_res_tac
     \\ qexists `index + i`
     \\ drule find_index_LESS_LENGTH
-    \\ `LENGTH (MAP (\rec. rec.entry_pc) new_shmem_info) =
+    \\ `LENGTH (MAP FST new_shmem_info) =
         LENGTH mc_conf.ffi_entry_pcs - i`
           by metis_tac[LENGTH_DROP]
     \\ fs[LENGTH_MAP,LESS_SUB_ADD_LESS,EL_MAP,LENGTH_TAKE]
@@ -9051,22 +9064,20 @@ val IMP_state_rel_make_init = Q.prove(
       drule find_index_shift
       \\ fs[]
       \\ disch_then $ qspec_then `i` assume_tac
-      \\ gvs[ELIM_UNCURRY,shmem_info_component_equality]>>
+      \\ gvs[ELIM_UNCURRY,shmem_rec_component_equality]>>
+      ‘LENGTH new_shmem_info = LENGTH info’
+        by fs[Abbr ‘new_shmem_info’]>>
+      simp[ZIP_GENLIST1]>>
       irule ALOOKUP_ALL_DISTINCT_MEM>>
-      qmatch_goalsub_abbrev_tac ‘ZIP (l1, l2)’>>
-      ‘LENGTH l1 = LENGTH l2’ by (unabbrev_all_tac>>fs[LENGTH_GENLIST,LENGTH_MAP])>>
-      fs[MAP_ZIP,MEM_ZIP]>>unabbrev_all_tac>>fs[]>>
-      fs[ALL_DISTINCT_GENLIST]>>fs[MAP_MAP_o,o_DEF]>>gvs[]>>simp[EL_MAP]>>
-
-      qexists_tac ‘index’>>fs[EL_MAP]>>
-      fs[EL_GENLIST])
+      fs[MAP_GENLIST,o_DEF,ALL_DISTINCT_GENLIST]>>
+      fs[MEM_GENLIST,Abbr ‘new_shmem_info’]>>fs[EL_MAP])
     \\ qpat_x_assum `SOME _ = find_index _ _ _` $ assume_tac o GSYM
     \\ `~MEM (n2w (pos_val pc 0 code2) + mc_conf.target.get_pc ms)
         (TAKE i mc_conf.ffi_entry_pcs)` suffices_by (
       strip_tac
       \\ drule_then assume_tac (iffLR find_index_NOT_MEM)
       \\ pop_assum $ qspec_then `0` assume_tac
-      \\ gvs[ELIM_UNCURRY,shmem_info_component_equality,LENGTH_TAKE]
+      \\ gvs[ELIM_UNCURRY,shmem_rec_component_equality,LENGTH_TAKE]
     )
     \\ `LENGTH (prog_to_bytes code2) < dimword (:α)` by gvs[]
     \\ drule $ GEN_ALL asm_fetch_NOT_ffi_entry_pcs
@@ -9610,11 +9621,14 @@ val semantics_compile_lemma = Q.prove(
     c'.ffi_names = SOME mc_conf.ffi_names /\
     good_init_state mc_conf ms bytes cbspace t m dm sdm io_regs cc_regs /\
     (* set up mmio_info and ffi_entry_pcs for mmio *)
-    MAP (\rec. rec.entry_pc + mc_conf.target.get_pc ms) c'.shmem_extra =
+    MAP (\rec. mc_conf.target.get_pc ms + FST rec) c'.shmem_extra =
       DROP i mc_conf.ffi_entry_pcs /\
     mc_conf.mmio_info = ZIP (GENLIST (λindex. index + i) (LENGTH c'.shmem_extra),
-                              (MAP (\rec. (rec.nbytes, rec.access_addr, rec.reg,
-                                           rec.exit_pc + mc_conf.target.get_pc ms))
+                              (MAP (\rec. ((SND rec).nbytes,
+                                           (SND rec).access_addr,
+                                           (SND rec).reg,
+                                           (SND rec).exit_pc
+                                           + mc_conf.target.get_pc ms))
                                    c'.shmem_extra)) ∧
     no_install_or_no_share_mem code mc_conf.ffi_names /\
    (mmio_pcs_min_index mc_conf.ffi_names = SOME i) /\
@@ -9835,12 +9849,13 @@ Theorem semantics_compile:
    c'.ffi_names = SOME mc_conf.ffi_names /\
    good_init_state mc_conf ms bytes cbspace t m dm sdm io_regs cc_regs /\
    mmio_pcs_min_index mc_conf.ffi_names = SOME i /\
-   MAP (\rec. rec.entry_pc + mc_conf.target.get_pc ms) c'.shmem_extra =
+   MAP (\rec. mc_conf.target.get_pc ms + FST rec) c'.shmem_extra =
     DROP i mc_conf.ffi_entry_pcs /\
-   mc_conf.mmio_info = ZIP (GENLIST (λindex. index + i) (LENGTH c'.shmem_extra),
-                              (MAP (\rec. (rec.nbytes, rec.access_addr, rec.reg,
-                                           rec.exit_pc + mc_conf.target.get_pc ms))
-                                   c'.shmem_extra)) ∧
+   mc_conf.mmio_info =
+   ZIP (GENLIST (λindex. index + i) (LENGTH c'.shmem_extra),
+        (MAP (\rec. ((SND rec).nbytes, (SND rec).access_addr,
+                     (SND rec).reg, (SND rec).exit_pc + mc_conf.target.get_pc ms))
+             c'.shmem_extra)) ∧
   no_install_or_no_share_mem code mc_conf.ffi_names /\
   (* to avoid the ffi_entry_pc wraps around and overlaps with the program or code buffer *)
   cbspace + LENGTH bytes + ffi_offset * (i + 3) < dimword (:'a) /\

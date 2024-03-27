@@ -650,11 +650,11 @@ val components = theorem "config_component_equality"
 Theorem to_shmem_info_to_inc_shmem_info_inv[simp]:
   MAP to_shmem_info (MAP to_inc_shmem_info ls) = ls
 Proof
-  Induct_on ‘ls’>>rw[]>>
+  Induct_on ‘ls’>>rw[]>>Cases_on ‘h’>>rw[]>>rename1 ‘_= (q,r)’>>
   simp[lab_to_targetTheory.to_inc_shmem_info_def,
        lab_to_targetTheory.to_shmem_info_def,
-       lab_to_targetTheory.shmem_info_component_equality]>>
-  Cases_on ‘h.access_addr’>>fs[]
+       lab_to_targetTheory.shmem_rec_component_equality]>>
+  Cases_on ‘r.access_addr’>>fs[]
 QED
 
 Theorem to_inc_shmem_info_to_shmem_info_inv[simp]:
