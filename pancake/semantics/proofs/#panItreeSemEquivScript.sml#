@@ -832,10 +832,10 @@ Proof
   simp[itree_semantics_beh_def]>>
   DEEP_INTRO_TAC some_intro >> rw [] >>
   DEEP_INTRO_TAC some_intro >> rw [] >-
-
    (ntac 2 (CASE_TAC>>fs[])>>
     TRY (ntac 2 (CASE_TAC>>fs[]))>>
     imp_res_tac clock0>>
+    simp[unclock_def]
     first_x_assum $ qspec_then ‘k’ assume_tac>>fs[]>>
     drule itreeTauTheory.itree_wbisim_sym>>strip_tac>>
     drule itreeTauTheory.itree_wbisim_trans>>
