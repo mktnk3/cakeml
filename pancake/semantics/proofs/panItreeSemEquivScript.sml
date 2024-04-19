@@ -195,6 +195,63 @@ Proof
   drule itreeTauTheory.itree_bind_resp_t_wbisim >>
   rw [itree_bind_left_ident_wbisim]
 QED
+
+(***)
+
+Theorem h_prog_not_Tau:
+  ∀prog s t. h_prog (prog, s) ≠ Tau t
+Proof
+  Induct>>
+  fs[panItreeSemTheory.h_prog_def,
+     panItreeSemTheory.h_prog_rule_dec_def,
+     panItreeSemTheory.h_prog_rule_tick_def,
+     panItreeSemTheory.h_prog_rule_return_def,
+     panItreeSemTheory.h_prog_rule_raise_def,
+     panItreeSemTheory.h_prog_rule_ext_call_def,
+     panItreeSemTheory.h_prog_rule_call_def,
+     panItreeSemTheory.h_prog_rule_while_def,
+     panItreeSemTheory.h_prog_rule_cond_def,
+     panItreeSemTheory.h_prog_rule_seq_def,
+     panItreeSemTheory.h_prog_rule_store_def,
+     panItreeSemTheory.h_prog_rule_store_byte_def,
+     panItreeSemTheory.h_prog_rule_assign_def]>>
+  rpt gen_tac>>
+  rpt (CASE_TAC>>fs[])>>
+  simp[Once itreeTauTheory.itree_iter_thm]>>
+  rpt (CASE_TAC>>fs[])>>
+  cheat (* shmem case *)
+QED
+
+
+Theorem h_prog_Vis_INR:
+  ∀prog s t.
+  case prog of
+    ExtCall _ _ _ _ _ => h_prog (prog, s) = Vis (INR x) k ⇒ k = Ret
+  | _ => h_prog (prog, s) ≠ Vis (INR x) k
+Proof
+  Induct>>
+  fs[panItreeSemTheory.h_prog_def,
+     panItreeSemTheory.h_prog_rule_dec_def,
+     panItreeSemTheory.h_prog_rule_tick_def,
+     panItreeSemTheory.h_prog_rule_return_def,
+     panItreeSemTheory.h_prog_rule_raise_def,
+     panItreeSemTheory.h_prog_rule_ext_call_def,
+     panItreeSemTheory.h_prog_rule_call_def,
+     panItreeSemTheory.h_prog_rule_while_def,
+     panItreeSemTheory.h_prog_rule_cond_def,
+     panItreeSemTheory.h_prog_rule_seq_def,
+     panItreeSemTheory.h_prog_rule_store_def,
+     panItreeSemTheory.h_prog_rule_store_byte_def,
+     panItreeSemTheory.h_prog_rule_assign_def]>>
+  rpt gen_tac>>
+  rpt (CASE_TAC>>fs[])>>
+  simp[Once itreeTauTheory.itree_iter_thm]>>
+  rpt (CASE_TAC>>fs[])>>
+  cheat (* shmem case *)
+QED
+
+(***)
+
 (*
 (* TODO: Finish this *)
 Theorem msem_ret_wbisim_eq:
@@ -448,6 +505,7 @@ Definition itree_semantics_beh_def:
       | NONE => SemDiverge (stree_trace query_oracle s.ffi (to_stree (mrec_sem (h_prog (prog,s)))))
 End
 
+
 Theorem itree_sem_div_compos_thm:
   itree_semantics_beh (s with locals := s.locals |+ (v,x)) prog = SemDiverge l ⇒
   itree_semantics_beh s (Dec v e prog) = SemDiverge l
@@ -686,50 +744,6 @@ QED
 
 (** clock independence **)
 
-Theorem clock2:
-  ∀prog s. 
-  h_prog (prog, s) = Ret x ⇒
-  ∃y. h_prog (prog, s with clock := k + s.clock) = Ret y ∧
-      FST y = FST x ∧ unclock (SND y) = unclock (SND x)
-Proof
-  recInduct panItreeSemTheory.h_prog_ind>>
-  rw [panItreeSemTheory.h_prog_def,
-      panItreeSemTheory.h_prog_rule_dec_def,
-      panItreeSemTheory.h_prog_rule_assign_def,
-      panItreeSemTheory.h_prog_rule_store_def,
-      panItreeSemTheory.h_prog_rule_store_byte_def,
-      panItreeSemTheory.h_prog_rule_call_def,
-      panItreeSemTheory.h_prog_rule_ext_call_def,
-      panItreeSemTheory.h_prog_rule_seq_def,
-      panItreeSemTheory.h_prog_rule_cond_def,
-      panItreeSemTheory.h_prog_rule_raise_def,
-      panItreeSemTheory.h_prog_rule_return_def,
-      panItreeSemTheory.h_prog_rule_tick_def,
-      panItreeSemTheory.h_prog_rule_while_def,
-      panPropsTheory.eval_upd_clock_eq]>>
-  TRY (fs[unclock_def]>>NO_TAC)>>fs[]>-
-   (rpt (CASE_TAC>>fs[])>>gvs[unclock_def])>-
-   (rpt (CASE_TAC>>fs[])>>gvs[unclock_def])>-
-   (rpt (CASE_TAC>>fs[])>>gvs[unclock_def])>-
-   (rpt (CASE_TAC>>fs[])>>gvs[unclock_def])>-
-   cheat (* shmem *) >-
-   (rpt (CASE_TAC>>fs[])>>gvs[unclock_def])>-
-   (rpt (FULL_CASE_TAC>>fs[])>>gvs[]>>
-    fs[Once itreeTauTheory.itree_iter_thm,
-       panPropsTheory.eval_upd_clock_eq]>>
-    rpt (CASE_TAC>>gvs[unclock_def]))>-
-   (rpt (FULL_CASE_TAC>>fs[])>>gvs[unclock_def]>>
-    fs[panPropsTheory.opt_mmap_eval_upd_clock_eq]>>
-    fs[panSemTheory.lookup_code_def,option_case_eq]>>
-    FULL_CASE_TAC>>gvs[])>-
-   (rpt (CASE_TAC>>fs[])>>gvs[unclock_def])>-
-   (rpt (CASE_TAC>>fs[])>>
-    gvs[unclock_def,panSemTheory.empty_locals_def])>-
-   (rpt (CASE_TAC>>fs[])>>
-    gvs[unclock_def,panSemTheory.empty_locals_def])>-
-   cheat (* tick *)
-QED
-
 (* a better version than the one in panPropsTheory *)
 Theorem opt_mmap_eval_upd_clock_eq:
   !es s ck. OPT_MMAP (eval (s with clock := ck)) es =
@@ -742,7 +756,7 @@ Proof
   metis_tac [panPropsTheory.eval_upd_clock_eq]
 QED
 
-Theorem clock2:
+Theorem h_prog_clock_ret:
   ∀prog s. 
   h_prog (prog, s) = Ret x ⇒
   ∀k. ∃y. h_prog (prog, s with clock := k) = Ret y ∧
@@ -787,7 +801,179 @@ Proof
    cheat (* tick *)
 QED
 
-Theorem clock1:
+Theorem h_handle_call_ret_clock:
+  ∀k. h_handle_call_ret calltyp (s with clock := k) =
+      h_handle_call_ret calltyp s
+Proof
+  simp[FUN_EQ_THM]>>
+  simp[Once SWAP_FORALL_THM,FORALL_PROD]>>
+  qid_spec_tac ‘s’>>
+  qid_spec_tac ‘calltyp’>>
+  recInduct panItreeSemTheory.h_handle_call_ret_ind>>
+  rw[panItreeSemTheory.h_handle_call_ret_def]
+QED
+
+Theorem h_prog_clock_vis1:
+  ∀prog s. 
+  h_prog (prog, s) = Vis (INL x) g ⇒
+  (∀k. ∃y. h_prog (prog, s with clock := k) = Vis (INL y) g ∧
+           FST y = FST x ∧ unclock (SND y) = unclock (SND x))
+Proof
+  recInduct panItreeSemTheory.h_prog_ind>>
+  rw [panItreeSemTheory.h_prog_def,
+      panItreeSemTheory.h_prog_rule_dec_def,
+      panItreeSemTheory.h_prog_rule_assign_def,
+      panItreeSemTheory.h_prog_rule_store_def,
+      panItreeSemTheory.h_prog_rule_store_byte_def,
+      panItreeSemTheory.h_prog_rule_call_def,
+      panItreeSemTheory.h_prog_rule_ext_call_def,
+      panItreeSemTheory.h_prog_rule_seq_def,
+      panItreeSemTheory.h_prog_rule_cond_def,
+      panItreeSemTheory.h_prog_rule_raise_def,
+      panItreeSemTheory.h_prog_rule_return_def,
+      panItreeSemTheory.h_prog_rule_tick_def,
+      panItreeSemTheory.h_prog_rule_while_def,
+      panPropsTheory.eval_upd_clock_eq]>>
+  TRY (rpt (CASE_TAC>>gvs[unclock_def])>>NO_TAC)>>fs[]>-
+   cheat (* shmem *) >-
+   fs[unclock_def]>-
+   (pop_assum mp_tac>>
+    simp[Once itreeTauTheory.itree_iter_thm]>>
+    ntac 3 (TOP_CASE_TAC>>fs[])>>
+    IF_CASES_TAC>>fs[]>>
+    strip_tac>>
+    gvs[]>>
+    fs[Once itreeTauTheory.itree_iter_thm,
+       panPropsTheory.eval_upd_clock_eq]>>
+    fs[unclock_def])>-
+   (rpt (FULL_CASE_TAC>>fs[])>>gvs[unclock_def]>>
+    fs[opt_mmap_eval_upd_clock_eq,panSemTheory.lookup_code_def,
+       h_handle_call_ret_clock]>>
+    rpt (FULL_CASE_TAC>>gvs[]))>>
+  rpt (FULL_CASE_TAC>>gvs[])
+QED
+
+Theorem h_prog_clock_visR:
+  ∀prog s. 
+  h_prog (prog, s) = Vis (INR x) g ⇒
+  (∀k. ∃y. h_prog (prog, s with clock := k) = Vis (INR y) g ∧
+           FST y = FST x ∧
+           (∀c. unclock (SND ((SND y) c)) = unclock (SND ((SND x) c)) ∧
+           FST ((SND y) c) = FST ((SND x) c)))
+Proof
+  recInduct panItreeSemTheory.h_prog_ind>>
+  rw [panItreeSemTheory.h_prog_def,
+      panItreeSemTheory.h_prog_rule_dec_def,
+      panItreeSemTheory.h_prog_rule_assign_def,
+      panItreeSemTheory.h_prog_rule_store_def,
+      panItreeSemTheory.h_prog_rule_store_byte_def,
+      panItreeSemTheory.h_prog_rule_call_def,
+      panItreeSemTheory.h_prog_rule_ext_call_def,
+      panItreeSemTheory.h_prog_rule_seq_def,
+      panItreeSemTheory.h_prog_rule_cond_def,
+      panItreeSemTheory.h_prog_rule_raise_def,
+      panItreeSemTheory.h_prog_rule_return_def,
+      panItreeSemTheory.h_prog_rule_tick_def,
+      panItreeSemTheory.h_prog_rule_while_def,
+      panPropsTheory.eval_upd_clock_eq]>>
+  TRY (rpt (CASE_TAC>>gvs[unclock_def])>>NO_TAC)>>fs[]>-
+   cheat (* shmem *) >-
+   (pop_assum mp_tac>>
+    simp[Once itreeTauTheory.itree_iter_thm]>>
+    ntac 3 (TOP_CASE_TAC>>fs[])>>
+    IF_CASES_TAC>>fs[])>-
+   (pop_assum mp_tac>>
+    simp[Once itreeTauTheory.itree_iter_thm]>>
+    fs[opt_mmap_eval_upd_clock_eq,panSemTheory.lookup_code_def,
+       h_handle_call_ret_clock]>>
+    ntac 3 (TOP_CASE_TAC>>fs[])>>
+    rpt (TOP_CASE_TAC>>fs[]))>-
+   (rpt (FULL_CASE_TAC>>fs[])>>gvs[]>>
+    strip_tac>>
+    TOP_CASE_TAC>>fs[unclock_def,panSemTheory.empty_locals_def])>>
+  rpt (FULL_CASE_TAC>>gvs[])
+QED
+
+(*
+Theorem clock2:
+  ∀prog s. 
+  h_prog (prog, s) ≈ Ret x ⇒
+  ∀k. ∃y. h_prog (prog, s with clock := k) ≈ Ret y ∧
+          FST y = FST x ∧ unclock (SND y) = unclock (SND x)
+Proof
+  recInduct panItreeSemTheory.h_prog_ind>>
+  rw [panItreeSemTheory.h_prog_def,
+      panItreeSemTheory.h_prog_rule_dec_def,
+      panItreeSemTheory.h_prog_rule_assign_def,
+      panItreeSemTheory.h_prog_rule_store_def,
+      panItreeSemTheory.h_prog_rule_store_byte_def,
+      panItreeSemTheory.h_prog_rule_call_def,
+      panItreeSemTheory.h_prog_rule_ext_call_def,
+      panItreeSemTheory.h_prog_rule_seq_def,
+      panItreeSemTheory.h_prog_rule_cond_def,
+      panItreeSemTheory.h_prog_rule_raise_def,
+      panItreeSemTheory.h_prog_rule_return_def,
+      panItreeSemTheory.h_prog_rule_tick_def,
+      panItreeSemTheory.h_prog_rule_while_def,
+      panPropsTheory.eval_upd_clock_eq]>>
+  TRY (fs[unclock_def,h_prog_not_Tau,
+          Once itreeTauTheory.itree_wbisim_cases]>>NO_TAC)>>fs[]>-
+   (rpt (CASE_TAC>>fs[])>>
+    gvs[unclock_def,h_prog_not_Tau,
+        Once itreeTauTheory.itree_wbisim_cases]>>
+    irule_at Any itreeTauTheory.itree_wbisim_refl>>fs[])>-
+   (rpt (CASE_TAC>>fs[])>>
+    gvs[unclock_def,h_prog_not_Tau,
+        Once itreeTauTheory.itree_wbisim_cases]>>
+    irule_at Any itreeTauTheory.itree_wbisim_refl>>fs[])>-
+   (rpt (CASE_TAC>>fs[])>>
+    gvs[unclock_def,h_prog_not_Tau,
+        Once itreeTauTheory.itree_wbisim_cases]>>
+    irule_at Any itreeTauTheory.itree_wbisim_refl>>fs[])>-
+   (rpt (CASE_TAC>>fs[])>>
+    gvs[unclock_def,h_prog_not_Tau,
+        Once itreeTauTheory.itree_wbisim_cases]>>
+    irule_at Any itreeTauTheory.itree_wbisim_refl>>fs[])>-
+   cheat (* shmem *) >-
+   (rpt (CASE_TAC>>fs[])>>
+    gvs[unclock_def,h_prog_not_Tau,
+        Once itreeTauTheory.itree_wbisim_cases]>>
+    irule_at Any itreeTauTheory.itree_wbisim_refl>>fs[])>-
+   (rpt (FULL_CASE_TAC>>fs[])>>gvs[]>>
+    fs[Once itreeTauTheory.itree_iter_thm,
+       panPropsTheory.eval_upd_clock_eq]>>
+    rpt (CASE_TAC>>gvs[])>>
+    gvs[unclock_def,h_prog_not_Tau,
+        Once itreeTauTheory.itree_wbisim_cases]>>
+    irule_at Any itreeTauTheory.itree_wbisim_refl>>fs[])>-
+   (rpt (FULL_CASE_TAC>>fs[])>>
+    gvs[unclock_def,h_prog_not_Tau,
+        Once itreeTauTheory.itree_wbisim_cases]>>
+    fs[opt_mmap_eval_upd_clock_eq]>>
+    fs[pan_commonPropsTheory.opt_mmap_eq_some]>>
+    fs[panSemTheory.lookup_code_def,option_case_eq]>>
+    TRY (FULL_CASE_TAC>>gvs[])>>
+    TRY (irule_at Any itreeTauTheory.itree_wbisim_refl>>fs[]))>-
+   (rpt (CASE_TAC>>fs[])>>
+    gvs[unclock_def,h_prog_not_Tau,
+        Once itreeTauTheory.itree_wbisim_cases]>>
+    irule_at Any itreeTauTheory.itree_wbisim_refl>>fs[])>-
+
+   (rpt (CASE_TAC>>fs[])>>
+    gvs[unclock_def,panSemTheory.empty_locals_def]>>
+    gvs[unclock_def,h_prog_not_Tau,
+        Once itreeTauTheory.itree_wbisim_cases]>>
+    irule_at Any itreeTauTheory.itree_wbisim_refl>>fs[])>-
+   (rpt (CASE_TAC>>fs[])>>
+    gvs[unclock_def,panSemTheory.empty_locals_def]>>
+    gvs[unclock_def,h_prog_not_Tau,
+        Once itreeTauTheory.itree_wbisim_cases]>>
+    irule_at Any itreeTauTheory.itree_wbisim_refl>>fs[])>-
+   cheat (* tick *)
+QED
+*)
+
+Theorem mrec_sem_clock_ret:
   mrec_sem (h_prog (prog, s)) = Ret x ⇒
   ∃y. mrec_sem (h_prog (prog, s with clock := k)) = Ret y ∧
       FST y = FST x ∧ unclock (SND y) = unclock (SND x)
@@ -795,7 +981,7 @@ Proof
   strip_tac>>
   fs[panItreeSemTheory.mrec_sem_def]>>
   Cases_on ‘h_prog (prog,s)’>>fs[]>-
-   (imp_res_tac clock2>>
+   (imp_res_tac h_prog_clock_ret>>
     first_x_assum $ qspec_then ‘k’ assume_tac>>
     fs[]>>
     gvs[Once itreeTauTheory.itree_iter_thm]>>
@@ -806,24 +992,126 @@ Proof
   pairarg_tac>>fs[]
 QED
 
-Theorem clock0:
-  ltree_lift query_oracle s.ffi (mrec_sem (h_prog (prog,s))) = Ret (r,s') ⇒
-  ∀k. ∃r' s''. ltree_lift query_oracle s.ffi (mrec_sem (h_prog (prog,s with clock := k))) = Ret (r',s'') ∧ r' = r ∧ unclock s' = unclock s''
+Theorem mrec_sem_clock_tau:
+  mrec_sem (h_prog (prog, s)) = Tau x ⇒
+  ∃y. mrec_sem (h_prog (prog, s with clock := k)) = Tau y (*∧
+      FST y = FST x ∧ unclock (SND y) = unclock (SND x)*)
+Proof
+  Cases_on ‘h_prog (prog,s)’>>fs[h_prog_not_Tau]>-
+   (imp_res_tac h_prog_clock_ret>>
+    first_x_assum $ qspec_then ‘k’ assume_tac>>
+    fs[]>>
+    strip_tac>>fs[panItreeSemTheory.mrec_sem_simps])>>
+  Cases_on ‘a’>>fs[]>-
+   (imp_res_tac h_prog_clock_vis1>>
+    first_x_assum $ qspec_then ‘k’ assume_tac>>
+    fs[]>>
+    strip_tac>>fs[panItreeSemTheory.mrec_sem_simps])>>
+  imp_res_tac h_prog_clock_visR>>
+  first_x_assum $ qspec_then ‘k’ assume_tac>>
+  fs[]>>
+  strip_tac>>fs[panItreeSemTheory.mrec_sem_simps]
+QED
+
+Theorem mrec_sem_clock_vis:
+  mrec_sem (h_prog (prog, s)) = Vis a g ⇒
+  ∃a'. mrec_sem (h_prog (prog, s with clock := k)) = Vis a' g ∧
+       FST a' = FST a ∧
+       (∀c. unclock (SND ((SND a') c)) = unclock (SND ((SND a) c)) ∧
+            FST ((SND a') c) = FST ((SND a) c))
+Proof
+  Cases_on ‘h_prog (prog,s)’>>fs[h_prog_not_Tau]>-
+   (imp_res_tac h_prog_clock_ret>>
+    first_x_assum $ qspec_then ‘k’ assume_tac>>
+    fs[]>>
+    strip_tac>>fs[panItreeSemTheory.mrec_sem_simps])>>
+  Cases_on ‘a'’>>fs[]>-
+   (imp_res_tac h_prog_clock_vis1>>
+    first_x_assum $ qspec_then ‘k’ assume_tac>>
+    fs[]>>
+    strip_tac>>fs[panItreeSemTheory.mrec_sem_simps])>>
+  imp_res_tac h_prog_clock_visR>>
+  first_x_assum $ qspec_then ‘k’ assume_tac>>
+  fs[]>>
+  strip_tac>>fs[panItreeSemTheory.mrec_sem_simps]
+QED
+(*
+Theorem mrec_sem_clock:
+  mrec_sem (h_prog (prog, s)) ≈ Ret x ⇒
+  ∃y. mrec_sem (h_prog (prog, s with clock := k)) ≈ Ret y ∧
+      FST y = FST x ∧ unclock (SND y) = unclock (SND x)
+Proof
+  strip_tac>>
+  fs[panItreeSemTheory.mrec_sem_def]>>
+  Cases_on ‘h_prog (prog,s)’>>fs[h_prog_not_Tau]>-
+   (imp_res_tac h_prog_clock_ret>>
+    first_x_assum $ qspec_then ‘k’ assume_tac>>
+    fs[]>>
+    gvs[Once itreeTauTheory.itree_iter_thm]>>
+    gvs[Once itreeTauTheory.itree_iter_thm]>>
+    gvs[Once itreeTauTheory.itree_wbisim_cases]>>
+    irule_at Any itreeTauTheory.itree_wbisim_refl>>fs[])>>
+  Cases_on ‘a’>>gvs[] >-
+   (imp_res_tac h_prog_clock_vis1>>
+    first_x_assum $ qspec_then ‘k’ assume_tac>>fs[]>>
+  gvs[Once itreeTauTheory.itree_iter_thm]>>
+  simp[Once itreeTauTheory.itree_iter_thm]>>
+  fs[Once itreeTauTheory.itree_wbisim_cases]>>
+    Cases_on ‘x'’>>fs[]>>
+    Cases_on ‘y’>>fs[]>>
+    cheat)>>
+  imp_res_tac h_prog_clock_visR>>
+  first_x_assum $ qspec_then ‘k’ assume_tac>>fs[]>>
+  gvs[Once itreeTauTheory.itree_iter_thm]>>
+  simp[Once itreeTauTheory.itree_iter_thm]>>
+  fs[Once itreeTauTheory.itree_wbisim_cases]
+QED
+*)
+Theorem ltree_lift_clock:
+  ltree_lift query_oracle s.ffi (mrec_sem (h_prog (prog,s))) ≈ Ret (r,s') ⇒
+  ∀k. ∃r' s''. ltree_lift query_oracle s.ffi (mrec_sem (h_prog (prog,s with clock := k))) ≈ Ret (r',s'') ∧ r' = r ∧ unclock s' = unclock s''
 Proof
   strip_tac>>
   strip_tac>>
   fs[ltree_lift_def]>>
   Cases_on ‘mrec_sem (h_prog (prog,s))’>>fs[]>-
-   (imp_res_tac clock1>>
+   (imp_res_tac mrec_sem_clock_lem>>
     first_x_assum $ qspec_then ‘k’ assume_tac>>
     fs[]>>
     gvs[Once itreeTauTheory.itree_iter_thm]>>
     gvs[Once itreeTauTheory.itree_iter_thm]>>
-    Cases_on ‘y’>>gvs[])>-
-   gvs[Once itreeTauTheory.itree_iter_thm]>>
-  Cases_on ‘a’>>
-  gvs[Once itreeTauTheory.itree_iter_thm]>>
-  pairarg_tac>>fs[]
+    Cases_on ‘y’>>gvs[]>>
+    gvs[Once itreeTauTheory.itree_wbisim_cases]>>
+    irule_at Any itreeTauTheory.itree_wbisim_refl>>fs[])>-
+   (imp_res_tac mrec_sem_clock_tau>>
+    first_x_assum $ qspec_then ‘k’ assume_tac>>fs[]>>
+    cheat)>>
+  imp_res_tac mrec_sem_clock_vis>>
+  first_x_assum $ qspec_then ‘k’ assume_tac>>fs[]>>
+  fs[Once itreeTauTheory.itree_iter_thm]>>
+  Cases_on ‘a’>>Cases_on ‘a'’>>fs[]>>
+  pairarg_tac>>fs[]>>gvs[]>>
+  first_x_assum $ qspec_then ‘a’ assume_tac>>fs[]>>
+  fs[Once itreeTauTheory.itree_iter_thm]>>
+(*
+    CASE_TAC>>fs[]>>FULL_CASE_TAC>>fs[]>>
+  fs[Once itreeTauTheory.itree_wbisim_cases]
+
+   (Cases_on ‘x’>>fs[]>>
+    irule_at Any itreeTauTheory.itree_wbisim_refl>>fs[])>-
+
+  fs[Once itreeTauTheory.itree_wbisim_cases]*)
+cheat
+QED
+
+Theorem wbisim_Ret_unique[simp]:
+  X ≈ Ret x ∧ X ≈ Ret y ⇒ x = y
+Proof
+  strip_tac>>
+  drule itreeTauTheory.itree_wbisim_sym>>strip_tac>>
+  drule itreeTauTheory.itree_wbisim_trans>>
+  disch_then $ rev_drule>>
+  simp[Once itreeTauTheory.itree_wbisim_cases]
 QED
 
 Theorem itree_beh_clock_shift:
@@ -831,16 +1119,43 @@ Theorem itree_beh_clock_shift:
 Proof
   simp[itree_semantics_beh_def]>>
   DEEP_INTRO_TAC some_intro >> rw [] >>
-  DEEP_INTRO_TAC some_intro >> rw [] >-
+  DEEP_INTRO_TAC some_intro >> rw [] >>
 
-   (ntac 2 (CASE_TAC>>fs[])>>
+TRY (ntac 2 (CASE_TAC>>fs[])>>
     TRY (ntac 2 (CASE_TAC>>fs[]))>>
-    imp_res_tac clock0>>
+    imp_res_tac ltree_lift_clock>>
     first_x_assum $ qspec_then ‘k’ assume_tac>>fs[]>>
+    drule_then rev_drule wbisim_Ret_unique>>gvs[unclock_def])>-
+   
+
+   strip_tac>>gvs[]>>
+   
+  TRY (CASE_TAC>>fs[])>>
+  imp_res_tac ltree_lift_clock>>
+  first_x_assum $ qspec_then ‘k’ assume_tac>>fs[]>>
+  first_x_assum $ qspec_then ‘(q,s'')’ assume_tac>>fs[]>>
+
+  (CASE_TAC>>fs[]>>
+   qabbrev_tac ‘t = s with clock := k’>>
+   ‘s.ffi = t.ffi’ by fs[Abbr ‘t’]>>fs[]>>
+   imp_res_tac ltree_lift_clock>>
+   first_x_assum $ qspec_then ‘s.clock’ assume_tac>>fs[Abbr ‘t’]>>
+   ‘s with clock := s.clock = s’ by
+     fs[panSemTheory.state_component_equality]>>
+   first_x_assum $ qspec_then ‘(q,s'')’ assume_tac>>fs[])>>
+  
+  simp[stree_trace_def]>>
+   
+
+
+    gvs[Once itreeTauTheory.itree_wbisim_cases]>>
+
+    TRY (fs[unclock_def])>>
+    imp_res_tac clock0>>
     drule itreeTauTheory.itree_wbisim_sym>>strip_tac>>
     drule itreeTauTheory.itree_wbisim_trans>>
     disch_then $ rev_drule_at Any>>
-    simp[Once itreeTauTheory.itree_wbisim_cases]>>
+
     gvs[FORALL_PROD,ltree_lift_cases,unclock_def])>>
 
 
