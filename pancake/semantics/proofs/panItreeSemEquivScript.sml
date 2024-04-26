@@ -650,6 +650,315 @@ Proof
                        rw [itree_wbisim_refl]))
 QED
 
+(****)
+
+Theorem un_dec_clock[simp]:
+  unclock (dec_clock s) = unclock s
+Proof
+  simp[unclock_def,dec_clock_def]
+QED
+
+Theorem X:
+  mrec_sem (h_prog (While e p, s)) ≈
+  (case eval (reclock s) e of
+     SOME (ValWord x) =>
+       if x = 0w then Ret (NONE,s)
+       else (case h_prog (p,s) of
+               Ret (NONE,s') => mrec_sem (h_prog (While e p, s'))
+             | Ret (SOME Continue, s') => mrec_sem (h_prog (While e p, s'))
+             | Ret (SOME Break, s') => Ret (NONE, s')
+             | Vis (INL x) g =>
+                 mrec_sem (h_prog x >>= g >>=
+ (λ(p1,p2).
+                (case p1 of
+                   NONE => Ret (INL (p,p2))
+                 | SOME Error => Ret (INR (p1,p2))
+                 | SOME TimeOut => Ret (INR (p1,p2))
+                 | SOME Break => Ret (INR (NONE,p2))
+                 | SOME Continue => Ret (INL (p,p2))
+                 | SOME (Return v6) => Ret (INR (p1,p2))
+                 | SOME (Exception v7 v8) => Ret (INR (p1,p2))
+                 | SOME (FinalFFI v9) => Ret (INR (p1,p2))) >>=
+                (λx.
+                     case x of
+                       INL a =>
+                         Tau
+                           (itree_iter
+                              (λ(p,s).
+                                   case eval (reclock s) e of
+                                     NONE => Ret (INR (SOME Error,s))
+                                   | SOME (ValWord w) =>
+                                     if w ≠ 0w then
+                                       Vis (INL (p,s))
+                                         (λ(res,s').
+                                              case res of
+                                                NONE => Ret (INL (p,s'))
+                                              | SOME Error =>
+                                                Ret (INR (res,s'))
+                                              | SOME TimeOut =>
+                                                Ret (INR (res,s'))
+                                              | SOME Break =>
+                                                Ret (INR (NONE,s'))
+                                              | SOME Continue =>
+                                                Ret (INL (p,s'))
+                                              | SOME (Return v6) =>
+                                                Ret (INR (res,s'))
+                                              | SOME (Exception v7 v8) =>
+                                                Ret (INR (res,s'))
+                                              | SOME (FinalFFI v9) =>
+                                                Ret (INR (res,s')))
+                                     else Ret (INR (NONE,s))
+                                   | SOME (ValLabel v14) =>
+                                     Ret (INR (SOME Error,s))
+                                   | SOME (Struct v10) =>
+                                     Ret (INR (SOME Error,s))) a
+                     | INR b => Ret b)
+             | Vis (INR y) g =>
+                 Vis y (Tau ∘ mrec_sem ∘
+                            (λx.
+                               g x >>=
+                                 (λ(p1,p2).
+                     (case p1 of
+                        NONE => Ret (INL (p,p2))
+                      | SOME Error => Ret (INR (p1,p2))
+                      | SOME TimeOut => Ret (INR (p1,p2))
+                      | SOME Break => Ret (INR (NONE,p2))
+                      | SOME Continue => Ret (INL (p,p2))
+                      | SOME (Return v6) => Ret (INR (p1,p2))
+                      | SOME (Exception v7 v8) => Ret (INR (p1,p2))
+                      | SOME (FinalFFI v9) => Ret (INR (p1,p2))) >>=
+                     (λx.
+                          case x of
+                            INL a =>
+                              Tau
+                                (itree_iter
+                                   (λ(p,s).
+                                        case eval (reclock s) e of
+                                          NONE => Ret (INR (SOME Error,s))
+                                        | SOME (ValWord w) =>
+                                          if w ≠ 0w then
+                                            Vis (INL (p,s))
+                                              (λ(res,s').
+                                                   case res of
+                                                     NONE => Ret (INL (p,s'))
+                                                   | SOME Error =>
+                                                     Ret (INR (res,s'))
+                                                   | SOME TimeOut =>
+                                                     Ret (INR (res,s'))
+                                                   | SOME Break =>
+                                                     Ret (INR (NONE,s'))
+                                                   | SOME Continue =>
+                                                     Ret (INL (p,s'))
+                                                   | SOME (Return v6) =>
+                                                     Ret (INR (res,s'))
+                                                   | SOME (Exception v7 v8) =>
+                                                     Ret (INR (res,s'))
+                                                   | SOME (FinalFFI v9) =>
+                                                     Ret (INR (res,s')))
+                                          else Ret (INR (NONE,s))
+                                        | SOME (ValLabel v14) =>
+                                          Ret (INR (SOME Error,s))
+                                        | SOME (Struct v10) =>
+                                          Ret (INR (SOME Error,s))) a)
+                          | INR b => Ret b))))
+             | t => mrec_sem t)
+   | _ => Ret (SOME Error,s))
+Proof
+  simp[h_prog_def,h_prog_rule_while_def]>>
+  simp[Once itree_iter_thm]>>
+  CASE_TAC>>gvs[]>-
+   (simp[mrec_sem_simps]>>
+    simp[Once itree_wbisim_cases])>>
+  reverse TOP_CASE_TAC>>fs[]>-
+   (simp[mrec_sem_simps]>>
+    simp[Once itree_wbisim_cases])>>
+  reverse TOP_CASE_TAC>>fs[]>-
+   (simp[mrec_sem_simps]>>
+    simp[Once itree_wbisim_cases])>>
+  reverse IF_CASES_TAC>>fs[]>-
+   (simp[mrec_sem_simps]>>
+    simp[Once itree_wbisim_cases])>>
+  simp[mrec_sem_simps]>>
+  simp[Once LAMBDA_PROD]>>
+  Cases_on ‘h_prog (p,s)’>>fs[h_prog_not_Tau]
+  >- (pairarg_tac>>fs[]>>
+      CASE_TAC>>fs[]>>simp[mrec_sem_simps]
+      >- irule itree_wbisim_refl>>
+      rename1 ‘(SOME xx,_)’>>Cases_on ‘xx’>>fs[]>>
+      simp[mrec_sem_simps]>>
+      irule itree_wbisim_refl)>>
+  Cases_on ‘a’>>fs[]
+  >- (qmatch_goalsub_abbrev_tac ‘g _ >>= X’>>
+      simp[mrec_sem_simps]>>
+      simp[GSYM itree_bind_assoc]>>
+      irule itree_wbisim_refl)>>
+
+  qmatch_goalsub_abbrev_tac ‘g _ >>= X’>>
+      simp[mrec_sem_simps]>>
+      simp[GSYM itree_bind_assoc]>>
+  ‘∀w. X w ≈ (λ(r,t). h_prog_rule_while e p t) w’
+    by (strip_tac>>pairarg_tac>>
+        simp[Abbr ‘X’, h_prog_rule_while_def]>>
+        CASE_TAC>>gvs[]
+        >- (simp[Once itree_iter_thm,
+                 panPropsTheory.eval_upd_clock_eq]>>gvs[]>>
+            CASE_TAC>>fs[]
+            >- (simp[Once itree_iter_thm]>>
+                simp[Once itree_wbisim_cases])>>
+            reverse CASE_TAC>>gvs[]
+            >- (simp[Once itree_iter_thm]>>
+                simp[Once itree_wbisim_cases])>>
+            reverse CASE_TAC>>gvs[]
+            >- (simp[Once itree_iter_thm]>>
+                simp[Once itree_wbisim_cases])>>
+            reverse CASE_TAC>>gvs[]
+            >- (simp[Once itree_iter_thm]>>
+                simp[Once itree_wbisim_cases])>>
+        simp[SimpR “$≈”,Once itree_iter_thm,
+             panPropsTheory.eval_upd_clock_eq]>>
+            irule itree_wbisim_refl)>>
+        CASE_TAC>>gvs[]>>
+        TRY (simp[Once itree_iter_thm]>>
+             CASE_TAC>>gvs[]
+            >- (simp[Once itree_iter_thm]>>
+                simp[Once itree_wbisim_cases])>>
+             reverse CASE_TAC>>gvs[]
+            >- (simp[Once itree_iter_thm]>>
+                simp[Once itree_wbisim_cases])>>
+             reverse CASE_TAC>>gvs[]
+            >- (simp[Once itree_iter_thm]>>
+                simp[Once itree_wbisim_cases])>>
+             reverse CASE_TAC>>gvs[]
+            >- (simp[Once itree_iter_thm]>>
+                simp[Once itree_wbisim_cases])>>
+
+            simp[Once itree_wbisim_cases]>>NO_TAC)>>
+        
+QED
+
+Theorem h_prog_Ret_ffi:
+  ∀p s s'.
+  h_prog (p, unclock s) = Ret (NONE, unclock s') ⇒ s.ffi = s'.ffi
+Proof
+  Induct>>
+  fs[h_prog_def,
+     h_prog_rule_dec_def,
+     h_prog_rule_return_def,
+     h_prog_rule_raise_def,
+     h_prog_rule_ext_call_def,
+     h_prog_rule_call_def,
+     h_prog_rule_while_def,
+     h_prog_rule_cond_def,
+     h_prog_rule_sh_mem_def,
+     h_prog_rule_sh_mem_def,
+     h_prog_rule_seq_def,
+     h_prog_rule_store_def,
+     h_prog_rule_store_byte_def,
+     h_prog_rule_assign_def]>>
+  TRY (rw[unclock_def]>>NO_TAC)>>
+  rpt strip_tac>>
+  fs[panPropsTheory.eval_upd_clock_eq,AllCaseEqs()]>>
+  TRY (gvs[unclock_def]>>NO_TAC)
+  >- (fs[Once itree_iter_thm,
+         panPropsTheory.eval_upd_clock_eq]>>
+      rpt (FULL_CASE_TAC>>fs[])>>fs[unclock_def])>>
+  Cases_on ‘m’>>fs[h_prog_rule_sh_mem_op_def]>>
+  fs[h_prog_rule_sh_mem_load_def,h_prog_rule_sh_mem_store_def]>>
+  rpt (FULL_CASE_TAC>>fs[])>>fs[unclock_def]
+QED
+
+Theorem itree_semantics_beh_while_SemFail:
+  itree_semantics_beh (unclock s1) (While e c) = SemFail ∧
+  itree_semantics_beh (unclock s) c =
+  SemTerminate (NONE,unclock s1) s1.ffi.io_events ∧
+  w ≠ 0w ∧
+  eval s e = SOME (ValWord w) ⇒
+  itree_semantics_beh (unclock s) (While e c) = SemFail
+Proof
+  strip_tac>>
+  fs[itree_semantics_beh_def]>>
+  fs[AllCaseEqs()]>>gvs[]>>
+  last_x_assum mp_tac>>
+  DEEP_INTRO_TAC some_intro >> reverse $ rw []>>
+  last_x_assum mp_tac>>
+  DEEP_INTRO_TAC some_intro >> reverse $ rw []>>
+  simp[PULL_EXISTS]>>
+  DEEP_INTRO_TAC some_intro >>
+  simp[]>>
+  ‘∃x. (λ(r,s').
+          ltree_lift query_oracle s.ffi
+                     (mrec_sem (h_prog (While e c,unclock s)))
+                     ≈ Ret (r,s') ∧ r = SOME Error) x’ by
+    (gvs[EXISTS_PROD]>>
+     simp[h_prog_def,h_prog_rule_while_def]>>
+     simp[Once itree_iter_thm,
+          panPropsTheory.eval_upd_clock_eq]>>
+     fs[mrec_sem_simps,ltree_lift_cases]>>
+     Cases_on ‘h_prog(c,unclock s)’>>
+     fs[mrec_sem_simps,ltree_lift_cases,h_prog_not_Tau]
+     >- (‘x = (NONE, unclock s1)’ by
+           fs[Once itree_wbisim_cases]>>gvs[]>>
+         fs[mrec_sem_simps,ltree_lift_cases]>>
+         qmatch_goalsub_abbrev_tac ‘∃x'. X ≈ Ret (_,x')’>>
+         ‘X = ltree_lift query_oracle s.ffi
+                         (mrec_sem (h_prog (While e c, unclock s1)))’ by
+           simp[h_prog_def,h_prog_rule_while_def,Abbr ‘X’]>>
+         fs[]>>
+         pop_assum kall_tac>>
+         pop_assum kall_tac>>
+         imp_res_tac h_prog_Ret_ffi>>gvs[]>>metis_tac[])>>
+      Cases_on ‘a’>>
+      fs[mrec_sem_simps,ltree_lift_cases]
+      >- (qmatch_goalsub_abbrev_tac ‘g _ >>= X’>>
+          simp[GSYM itree_bind_assoc]>>
+          Cases_on ‘h_prog x’>>Cases_on ‘x’>>
+          fs[h_prog_not_Tau,Once itree_bind_thm]>>
+          fs[mrec_sem_simps,ltree_lift_cases]
+          >- (irule_at Any itree_wbisim_trans>>
+              last_assum $ irule_at Any>>
+                         
+           cheat >>  (* INL - h_prog x = Ret case, cong rule? *)
+          Cases_on ‘a’>>
+          fs[mrec_sem_simps,ltree_lift_cases]
+          >- cheat >> (* div *)
+          fs[mrec_sem_simps,ltree_lift_cases]>>
+          Cases_on ‘y’>>
+          fs[mrec_sem_simps,ltree_lift_cases]>>
+          pairarg_tac>>fs[]>> (* cong rule? *)
+          cheat)>>
+      qmatch_goalsub_abbrev_tac ‘g _ >>= X’>>
+      fs[mrec_sem_simps,ltree_lift_cases]>>
+      Cases_on ‘y’>>
+      fs[mrec_sem_simps,ltree_lift_cases]>>
+      pairarg_tac>>fs[]>>
+      cheat) (* cong rule? *) >>
+  pairarg_tac>>rw[]>>
+  pairarg_tac>>gvs[EXISTS_PROD]
+  >- (drule itree_wbisim_sym>>strip_tac>>
+      drule itree_wbisim_trans>>
+      disch_then $ rev_drule>>
+      rw[Once itree_wbisim_cases])>>
+  first_assum $ irule_at Any
+QED
+
+Theorem dec_simps:
+  mrec_sem (h_prog (Dec v a p, s)) ≈
+  (case eval (reclock s) a of
+   | NONE => Ret (SOME Error,s)
+   | SOME x =>
+       mrec_sem (h_prog (p,s with locals := s.locals |+ (v,x)) >>=
+                        (λ(res,s').
+                           Ret
+                           (res,
+                            s' with locals := res_var s'.locals (v,FLOOKUP s.locals v)))))
+Proof
+  simp[h_prog_def,h_prog_rule_dec_def]>>
+  CASE_TAC>>gvs[]>>
+  simp[mrec_sem_simps]>- simp[Once itreeTauTheory.itree_wbisim_cases]>>
+  irule itreeTauTheory.itree_wbisim_refl
+QED
+
+
 (* Final goal:
 
    1. For every path that can be generated frong
@@ -680,7 +989,41 @@ Proof
       >- (rgs [Once evaluate_def,
                AllCaseEqs()] >> gvs []>>
           TRY (rw [itree_sem_while_fails,panPropsTheory.eval_upd_clock_eq])
-           >- (cheat) >>
+          >- (pairarg_tac >> gvs [AllCaseEqs()]
+              >>~ [‘_ = SemFail’]>>
+              TRY (irule itree_semantics_beh_while_SemFail>>gvs[])
+
+
+(*              ntac 2 $ last_x_assum (assume_tac o GSYM) >> rw [] >> gvs[]>>*)
+              fs[itree_semantics_beh_def]>>
+              fs[AllCaseEqs()]>>gvs[]>>
+              last_x_assum mp_tac>>
+              DEEP_INTRO_TAC some_intro >>
+              rpt strip_tac>>rpt (pairarg_tac>>gvs[])>>gvs[]>>
+              last_x_assum mp_tac>>
+              DEEP_INTRO_TAC some_intro >>
+              rpt strip_tac>>rpt (pairarg_tac>>gvs[])>>gvs[]>>
+              DEEP_INTRO_TAC some_intro >> rw[]>-
+               (pairarg_tac>>gvs[]
+              
+
+               fs[EXISTS_PROD]>>
+              simp[h_prog_def,h_prog_rule_while_def]>>
+                simp[Once itree_iter_thm,
+                     panPropsTheory.eval_upd_clock_eq]>>
+              simp[ mrec_sem_simps,ltree_lift_cases]>>
+                    
+
+                simp[Once itree_wbisim_cases,
+     simp[h_prog_def,h_prog_rule_while_def]>>
+
+
+
+               CONV_TAC SYM_CONV >>
+
+
+              
+                  cheat) >>
           CONV_TAC SYM_CONV >>
           irule EQ_TRANS>>
           irule_at Any itree_sem_while_no_loop>>
