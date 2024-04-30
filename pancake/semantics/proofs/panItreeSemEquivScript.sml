@@ -1959,7 +1959,86 @@ Proof
       simp[mrec_sem_simps,ltree_lift_cases]>>
       simp[Once itree_wbisim_cases]>>
       simp[Once itree_wbisim_cases])
-  >- cheat>>
+  >- (
+  DEEP_INTRO_TAC some_intro >>
+  simp[FORALL_PROD]>>fs[set_var_defs]>>rw[]>>
+  DEEP_INTRO_TAC some_intro >>
+  simp[FORALL_PROD]>>fs[set_var_defs]>>rw[]
+  >- (qmatch_asmsub_abbrev_tac ‘X = Tau u’>>
+      rename1 ‘u ≈ Ret (v,w)’>>
+      ‘X ≈ Ret (v,w)’ by gvs[Abbr‘X’]>>
+      fs[Abbr‘X’]>>
+      ‘ltree_lift query_oracle (s with locals := r).ffi (mrec_sem (h_prog (q,s with locals := r))) ≈ Ret (v,w)’ by simp[]>>
+      drule ltree_lift_state_lift>>
+      pop_assum kall_tac>>strip_tac>>
+      gvs[]>>
+      qmatch_asmsub_abbrev_tac ‘_ >>= X’>>
+      ‘u >>= X ≈ (Ret (v,w) >>= X)’ by
+        (irule itree_bind_resp_t_wbisim>>fs[])>>
+      gvs[Abbr‘X’]>>
+      qmatch_asmsub_abbrev_tac ‘_ >>= _ ≈ X’>>
+      rename1 ‘_ ≈ Ret (v',w')’>>
+      ‘X ≈ Ret (v',w')’ by
+        (irule itree_wbisim_trans>>
+         first_assum $ irule_at Any>>
+         irule itree_wbisim_sym>>fs[])>>
+      fs[Abbr‘X’]>>
+      
+      PURE_CASE_TAC>>gvs[]>>
+      PURE_CASE_TAC>>gvs[h_handle_call_ret_def]>>
+      TRY (gvs[mrec_sem_simps,ltree_lift_cases]>>
+           fs[Once itree_wbisim_cases]>>NO_TAC)
+      >- (PURE_CASE_TAC>>gvs[]>>
+          PURE_CASE_TAC>>gvs[]>>
+          TRY (gvs[mrec_sem_simps,ltree_lift_cases]>>
+               fs[Once itree_wbisim_cases]>>NO_TAC)>>
+          PURE_CASE_TAC>>gvs[]>>
+          PURE_CASE_TAC>>gvs[]>>
+          gvs[mrec_sem_simps,ltree_lift_cases,set_var_defs]>>
+          fs[Once itree_wbisim_cases])>>
+      PURE_CASE_TAC>>gvs[]>>
+      PURE_CASE_TAC>>gvs[]>>
+      TRY (gvs[mrec_sem_simps,ltree_lift_cases]>>
+           fs[Once itree_wbisim_cases]>>NO_TAC)>>
+      PURE_CASE_TAC>>gvs[]>>
+      PURE_CASE_TAC>>gvs[]>>
+      TRY (gvs[mrec_sem_simps,ltree_lift_cases]>>
+           fs[Once itree_wbisim_cases]>>NO_TAC)>>
+      PURE_CASE_TAC>>gvs[]>>
+      PURE_CASE_TAC>>gvs[]>>
+      PURE_CASE_TAC>>gvs[]>>
+      TRY (gvs[mrec_sem_simps,ltree_lift_cases]>>
+           fs[Once itree_wbisim_cases]>>NO_TAC)>>
+      PURE_TOP_CASE_TAC>>gvs[]>>
+      gvs[mrec_sem_simps,ltree_lift_cases,set_var_defs]
+      >- (DEEP_INTRO_TAC some_intro >>
+          simp[FORALL_PROD]>>fs[set_var_defs]>>rw[]>>gvs[]>>
+          drule_then rev_drule wbisim_Ret_unique>>rw[])>>
+      qmatch_goalsub_abbrev_tac ‘if X ∧ Y then _ else _’>>
+      Cases_on ‘X’>>gvs[]>>
+      simp[mrec_sem_simps,ltree_lift_cases]>>
+      fs[Once itree_wbisim_cases])
+     >- (
+     
+
+
+      fs[Once itree_wbisim_cases])>>
+  
+          
+
+    >- (PURE_CASE_TAC>>gvs[]>>
+        PURE_CASE_TAC>>gvs[]>>
+
+
+drule itree_wbisim_Ret_FUNPOW>>
+        rev_drule itree_wbisim_Ret_FUNPOW>>
+        strip_tac>>
+        strip_tac>>
+
+
+FUNPOW_Tau_wbisim_intro
+
+cheat>>
   simp[Once itree_wbisim_cases]>>
   DEEP_INTRO_TAC some_intro >>
   simp[FORALL_PROD]>>fs[set_var_defs]>>rw[]>>
