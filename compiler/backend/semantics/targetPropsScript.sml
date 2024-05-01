@@ -85,12 +85,12 @@ QED
 
 Definition ffi_entry_pcs_disjoint_def:
   ffi_entry_pcs_disjoint mc s1 len =
-    DISJOINT (set mc.ffi_entry_pcs) {s1.pc + n2w a | a < len}
+    DISJOINT (set (MAP FST mc.ffi_info)) {s1.pc + n2w a | a < len}
 End
 
 Theorem evaluate_EQ_evaluate_lemma:
   !n ms1 c.
-      c.target.get_pc ms1 IN (c.prog_addresses DIFF (set c.ffi_entry_pcs)) /\
+      c.target.get_pc ms1 IN (c.prog_addresses DIFF (set (MAP FST c.ffi_info))) /\
       c.target.state_ok ms1 /\
       (c.prog_addresses = dm) ∧
       interference_ok c.next_interfer (c.target.proj dm) /\
@@ -114,7 +114,7 @@ Theorem evaluate_EQ_evaluate_lemma:
         c.target.get_pc ms1 = init_pc + n2w (k * (2 ** c.target.config.code_alignment)) /\
         k * (2 ** c.target.config.code_alignment) < LENGTH (c.target.config.encode i) /\
         bytes_in_memory init_pc (c.target.config.encode i)
-          (c.target.get_byte ms1) (c.prog_addresses DIFF set c.ffi_entry_pcs)) ==>
+          (c.target.get_byte ms1) (c.prog_addresses DIFF set (MAP FST c.ffi_info))) ==>
       ?ms2.
         !k. (evaluate c io (k + (n + 1)) ms1 =
              evaluate (shift_interfer (n+1) c) io k ms2) /\
@@ -284,7 +284,7 @@ Theorem asm_step_IMP_evaluate_step = Q.prove(`
       \\ fs[] )
     >- (
       fs[DISJOINT_DEF,INTER_DEF,EXTENSION,EMPTY_DEF]
-      \\ qpat_x_assum `!x. ~(MEM x c.ffi_entry_pcs) \/ _` $ qspec_then `s1.pc`
+      \\ qpat_x_assum `!x. ~(MEM x (MAP FST c.ffi_info)) \/ _` $ qspec_then `s1.pc`
         assume_tac
       \\ fs[]
       \\ first_x_assum $ qspec_then `0` assume_tac
@@ -331,7 +331,7 @@ Theorem asm_step_IMP_evaluate_step = Q.prove(`
   )
   >- (
     irule bytes_in_memory_DIFF
-    \\ qexistsl [`s1.mem_domain`, `set c.ffi_entry_pcs`]
+    \\ qexistsl [`s1.mem_domain`, `set (MAP FST c.ffi_info)`]
     \\ gvs[]
   ))
   |> SIMP_RULE std_ss [GSYM PULL_FORALL];
@@ -366,7 +366,7 @@ Proof
   simp[Once evaluate_def] >>
   IF_CASES_TAC >> full_simp_tac(srw_ss())[] >>
   qabbrev_tac `pc_cond = (mc_conf.target.get_pc ms ∈ mc_conf.prog_addresses ∧
-                          (¬MEM (mc_conf.target.get_pc ms) mc_conf.ffi_entry_pcs))` >>
+                          (¬MEM (mc_conf.target.get_pc ms) (MAP FST mc_conf.ffi_info)))` >>
   IF_CASES_TAC >> fs[apply_oracle_def] >- (
   IF_CASES_TAC >> fs[] >>
   IF_CASES_TAC >> fs[] >>
