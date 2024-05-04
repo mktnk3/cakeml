@@ -2630,17 +2630,47 @@ Proof
    first_assum $ irule_at Any)
 QED
 
+Theorem itree_semantics_corres_timeout0:
+  ∀prog s r s'.
+    good_dimindex (:α) ∧
+    itree_semantics_beh (unclock s) prog = SemTerminate x ∧
+    FST x ≠ SOME TimeOut ⇒
+    ¬(∀k. evaluate (prog:'a prog,s with clock := k) = (SOME TimeOut,s'))
+Proof
+(*  rpt gen_tac>>strip_tac>>
+  fs[itree_semantics_beh_def]>>
+  qpat_x_assum ‘_ = SemTerminate _’ mp_tac>>
+  DEEP_INTRO_TAC some_intro>>rw[]>>
+  pairarg_tac>>fs[]>>
+  gvs[option_case_eq,result_case_eq]>>
+*)
+cheat
+QED
+
 Theorem itree_semantics_corres_timeout:
   ∀prog s r s'.
     good_dimindex (:α) ∧
-    evaluate (prog:'a prog,s) = (r,s') ∧
-    r = SOME TimeOut ⇒
+    (∀k. evaluate (prog:'a prog,s with clock := k) = (SOME TimeOut,s')) ⇒
+    itree_semantics_beh (unclock s) prog = SemTerminate (SOME TimeOut,unclock s')
+Proof
+  rpt strip_tac>>
+  CCONTR_TAC>>
+  qpat_x_assum ‘∀x. evaluate _ = _’ mp_tac>>
+  rewrite_tac[]>>
+  irule itree_semantics_corres_timeout0>>
+  gvs[]
+
+Theorem itree_semantics_corres_timeout:
+  ∀prog s r s'.
+    good_dimindex (:α) ∧
+    (∀k. evaluate (prog:'a prog,s with clock := k) = (SOME TimeOut,s')) ⇒
     itree_semantics_beh (unclock s) prog = SemTerminate (SOME TimeOut,unclock s')
 Proof
   recInduct evaluate_ind >> rw[]>>
   fs[Once evaluate_def,AllCaseEqs()]>> rpt (pairarg_tac>>fs[])>>gvs[res_var_def]>>
   simp[itree_semantics_beh_def]
-  >- (last_x_assum mp_tac>>
+  >- (Cases_on ‘eval s e’>>gvs[panPropsTheory.eval_upd_clock_eq]>>
+      last_x_assum mp_tac>>
       simp[itree_semantics_beh_def]>>
       DEEP_INTRO_TAC some_intro>>rw[]>>
       pairarg_tac>>gvs[option_case_eq]>>
@@ -2687,8 +2717,6 @@ Proof
           drule ltree_wbisim_bind_conv>>strip_tac>>
           qmatch_asmsub_abbrev_tac ‘_ >>= Y’>>
           first_x_assum $ qspec_then ‘Y’ assume_tac>>gvs[Abbr‘Y’]>>
-(*          qmatch_asmsub_abbrev_tac ‘h_prog (_,xx)’>>
-          ‘s.ffi = xx.ffi’ by simp[Abbr‘xx’]>>fs[]>>*)
           drule ltree_lift_state_lift'>>strip_tac>>gvs[]>>
           gvs[mrec_sem_simps,ltree_lift_cases]>>
           ‘Ret (r,s'') ≈ (Ret (SOME TimeOut,unclock s'):('a,'b) ltree)’
@@ -2732,7 +2760,52 @@ Proof
       simp[Abbr‘Y’,mrec_sem_simps,ltree_lift_cases]>>
       simp[Once itree_wbisim_cases])
      (* If *)
+  >- (Cases_on ‘w = 0w’>>gvs[]>>
+      last_x_assum mp_tac>>
+      simp[itree_semantics_beh_def]>>
+      bDEEP_INTRO_TAC some_intro>>rw[]>>
+      pairarg_tac>>gvs[option_case_eq]>>
+      FULL_CASE_TAC>>gvs[]>>
+      simp[h_prog_def,h_prog_rule_cond_def]>>
+      simp[panPropsTheory.eval_upd_clock_eq,mrec_sem_simps,ltree_lift_cases]>>
+      DEEP_INTRO_TAC some_intro>>(rw[]
+      >- (pairarg_tac>>gvs[]>>
+          drule_then rev_drule wbisim_Ret_unique>>strip_tac>>
+          gvs[]))>>
+      simp[EXISTS_PROD]>>
+      first_assum $ irule_at Any)
+     (* While *)
+  >- (DEEP_INTRO_TAC some_intro>>rw[]>>
+(*      pairarg_tac>>gvs[option_case_eq]>>
+      FULL_CASE_TAC>>gvs[]>>*)
+      simp[h_prog_def,h_prog_rule_while_def]>>
+      simp[panPropsTheory.eval_upd_clock_eq,mrec_sem_simps,ltree_lift_cases]>>
+      cheat)
+  (* While2 *)
+  >- (Cases_on ‘res’>>gvs[]
+      >- cheat>>
+      (*TRY (rename1 ‘evaluate _ = (SOME res,_)’>>
+           Cases_on ‘res=TimeOut’>>Cases_on ‘res=Continue’)>>gvs[]>>*)
+      cheat)
+  (* Tick *)
+  >- (DEEP_INTRO_TAC some_intro>>rw[]
+      >- (pairarg_tac>>fs[h_prog_def]>>
+          gvs[mrec_sem_simps,ltree_lift_cases]>>
+          fs[Once itree_wbisim_cases]>>(* False *) cheat)>>
+      simp[EXISTS_PROD]>>
+      fs[h_prog_def]>>
+      gvs[mrec_sem_simps,ltree_lift_cases]>>
+      fs[Once itree_wbisim_cases])>>
+  (* Call1 *)
+  >- cheat
+     (* Call2 *)
   >- (
+     
+      
+   
+       
+      
+      
 QED
 
 Theorem itree_semantics_corres_evaluate:
@@ -3047,8 +3120,12 @@ Proof
                 fs[mrec_sem_simps,ltree_lift_cases,to_stree_simps,stree_trace_simps])
               >- (* Seq 2 *)
                (fs[h_prog_def,h_prog_rule_seq_def,mrec_sem_simps,ltree_lift_cases,
-                   msem_lift_monad_law,to_stree_simps,stree_trace_simps,
-                   panPropsTheory.eval_upd_clock_eq,ltree_lift_monad_law]>>
+                   to_stree_simps,stree_trace_simps,panPropsTheory.eval_upd_clock_eq]>>
+                fs[msem_lift_monad_law,ltree_lift_monad_law]>>
+                qmatch_asmsub_abbrev_tac ‘X >>= Y’>>
+                Cases_on ‘∃w. X ≈ w’>>
+
+
                 cheat
 (*                qmatch_asmsub_abbrev_tac ‘X >>= Y’>>
                 Cases_on ‘∃w. X ≈ Ret w’>>fs[]
