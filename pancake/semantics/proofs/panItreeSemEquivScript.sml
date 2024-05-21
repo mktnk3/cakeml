@@ -3204,6 +3204,72 @@ QED
 
 (*** divergence ***)
 
+Theorem prefix_chain_APPEND:
+  prefix_chain X ⇔
+  prefix_chain (IMAGE (λx. APPEND l x) X)
+Proof
+  simp[EQ_IMP_THM]>>
+  strip_tac>>fs[prefix_chain_def]>>
+  rpt strip_tac>>
+  fs[IS_PREFIX_APPEND]>>
+  first_x_assum $ qspecl_then [‘l ++ l1’,‘l ++ l2’] assume_tac>>
+  gvs[]
+QED
+
+Theorem lprefix_chain_LAPPEND:
+  lprefix_chain X ⇔
+  lprefix_chain (IMAGE (λx. LAPPEND (fromList l) x) X)
+Proof
+  simp[EQ_IMP_THM]>>
+  strip_tac>>fs[lprefix_chain_def]>>
+  rpt strip_tac>>
+  fs[LPREFIX_APPEND]
+    >- (simp[Once LAPPEND_ASSOC]>>
+        simp[Once LAPPEND_ASSOC]>>
+        simp[LFINITE_fromList,LAPPEND11_FINITE1])>>
+  first_x_assum $ qspecl_then [‘LAPPEND (fromList l) ll1’,‘LAPPEND (fromList l) ll2’] assume_tac>>
+  gvs[LFINITE_fromList,LAPPEND11_FINITE1]>>
+  fs[Once LAPPEND_ASSOC]>>
+  gvs[LFINITE_fromList,LAPPEND11_FINITE1]>>
+  metis_tac[]
+QED
+Theorem evaluate_io_events_prefix_chain:
+  prefix_chain
+  {(SND (evaluate (prog,s with clock := k))).ffi.
+  io_events | k | T}
+Proof
+  simp[prefix_chain_def]>>
+  ntac 3 strip_tac>>
+  Cases_on ‘k<k'’>>fs[NOT_LESS]
+  >- (disj1_tac>>
+      qabbrev_tac ‘x=s with clock := k’>>
+      ‘s with clock := k' = x with clock := x.clock + (k'-k) ’
+        by simp[Abbr‘x’]>>
+      pop_assum (fn h => rewrite_tac [h])>>
+      irule panPropsTheory.evaluate_add_clock_io_events_mono)>>
+  disj2_tac>>
+  qabbrev_tac ‘x= s with clock := k'’>>
+  ‘s with clock := k = x with clock := x.clock + (k-k') ’
+    by simp[Abbr‘x’]>>
+  pop_assum (fn h => rewrite_tac [h])>>
+  irule panPropsTheory.evaluate_add_clock_io_events_mono
+QED
+
+Theorem evaluate_io_events_lprefix_chain:
+  lprefix_chain
+  {fromList (SND (evaluate (prog,s with clock := k))).ffi.
+  io_events | k | T}
+Proof
+  qmatch_goalsub_abbrev_tac ‘lprefix_chain X’>>
+  ‘X = IMAGE fromList
+             {(SND (evaluate (prog,s with clock := k))).ffi.
+                                              io_events|k|T}’
+    by (simp[Abbr‘X’,IMAGE_DEF]>>
+        simp[FUN_EQ_THM]>>rw[EQ_IMP_THM]>>metis_tac[])>>simp[]>>
+  irule lprefix_lubTheory.prefix_chain_lprefix_chain>>
+  simp[evaluate_io_events_prefix_chain]
+QED
+
 Theorem evaluate_stree_trace_LPREFIX:
   evaluate (prog:'a prog,reclock s with clock := k) = (SOME TimeOut,s') ∧
   (∀p. ¬(ltree_lift query_oracle s.ffi (mrec_sem (h_prog (prog,s))) ≈ Ret p)) ∧
@@ -3588,22 +3654,6 @@ Proof
   first_x_assum $ qspec_then ‘y1 - LENGTH t’ assume_tac>>gvs[]
 QED
 
-Definition stree_trace2_def:
-  stree_trace2 f p fs ^st =
-  LMAP THE $
-  LFILTER IS_SOME $
-  LUNFOLD
-  (λ(fs',t). case t of
-                 Ret r => NONE
-               | Tau u => SOME ((fs',u),NONE)
-               | Vis e k => let (a,rbytes,fs'') = f fs' e in
-                              if p a then
-                                SOME ((fs'',k a),SOME (make_io_event e rbytes))
-                              else
-                                SOME ((fs'', k a),NONE))
-  (fs,st)
-End
-
 Theorem stree_trace_simp:
   stree_trace q f ffi st =
   (case st of
@@ -3623,88 +3673,156 @@ Proof
   CASE_TAC>>gvs[]
 QED
 
-Theorem stree_trace2_simp:
-  stree_trace2 q f ffi st =
-  (case st of
-     Ret _ => [||]
-   | Tau u => stree_trace2 q f ffi u
-   | Vis a g => let (a',rbytes,fs'') = q ffi a in
-                  if f a'
-                  then
-                    make_io_event a rbytes:::
-                                  stree_trace2 q f fs'' (g a')
-                  else stree_trace2 q f fs'' (g a'))
+Theorem lprefix_chain_LUB_upper:
+  LUB {fromList (SND (evaluate (prog,s with clock := k))).ffi.
+                    io_events | k | T} =
+  LUB {fromList (SND (evaluate (prog,s with clock := k))).ffi.
+      io_events | k | n < k}
 Proof
-  simp[stree_trace2_def]>>
-  simp[Once LUNFOLD]>>
-  Cases_on ‘st’>>gvs[]>>
-  rpt (pairarg_tac>>fs[])>>
-  CASE_TAC>>gvs[]
+  qmatch_goalsub_abbrev_tac ‘LUB X = LUB Y’>>
+  ‘lprefix_chain X’
+    by (simp[Abbr‘X’]>>
+        irule evaluate_io_events_lprefix_chain)>>
+  ‘lprefix_chain Y’ 
+    by (simp[Abbr‘Y’]>>
+        irule lprefix_chain_subset>>
+        first_assum $ irule_at Any>>
+        simp[Abbr‘X’]>>
+        simp[SUBSET_DEF]>>
+        rpt strip_tac>>metis_tac[])>>
+  irule lprefix_lubTheory.IMP_build_lprefix_lub_EQ>>gvs[]>>
+  conj_tac>>simp[lprefix_rel_def]>>rpt strip_tac>>
+  unabbrev_all_tac>>
+  fs[IN_ABS,PULL_EXISTS]  
+  >- (Cases_on ‘n < k’>>fs[NOT_LESS]
+      >- (qexists ‘k’>>gvs[])>>
+      qexists ‘n+1’>>gvs[]>>
+      dxrule LESS_EQUAL_ADD>>strip_tac>>gvs[]>>
+      qabbrev_tac ‘x = s with clock := k’>>
+      ‘(SND (evaluate (prog,x))).ffi.io_events ≼
+       (SND (evaluate (prog,x with clock := x.clock + (p + 1)))).ffi.io_events’
+        by (irule panPropsTheory.evaluate_add_clock_io_events_mono)>>
+      fs[IS_PREFIX_APPEND]>>gvs[]>>
+      ‘s with clock := k + (p + 1) = x with clock := p + (x.clock + 1)’
+        by simp[Abbr‘x’]>>simp[]>>gvs[]>>
+      simp[LPREFIX_APPEND]>>
+      simp[GSYM LAPPEND_fromList]>>metis_tac[])>>
+  qexists ‘k’>>gvs[]
 QED
 
-Theorem stree_trace2_ok:
-  stree_trace q f ffi st = stree_trace2 q f ffi st
+Theorem evaluate_io_events_prefix:
+  {(SND (evaluate (prog,s with clock := k))).ffi.io_events | k | s.clock < k} =
+  IMAGE (λx. APPEND s.ffi.io_events x)
+        {DROP (LENGTH s.ffi.io_events)
+              (SND (evaluate (prog,s with clock := k))).ffi.io_events | k | s.clock < k}
 Proof
-  simp[Once stree_trace_simp,Once stree_trace2_simp]>>
-  simp[Once LLIST_BISIMULATION0]>>
-  qexists ‘CURRY
-         {((case st of
-            Ret v => [||]
-          | Tau u => stree_trace q f ffi u
-          | Vis a g =>
-            (λ(a',rbytes,fs'').
-                 if f a' then
-                   make_io_event a rbytes:::stree_trace q f fs'' (g a')
-                 else stree_trace q f fs'' (g a')) (q ffi a)),
-           case st of
-             Ret v => [||]
-           | Tau u => stree_trace2 q f ffi u
-           | Vis a g =>
-               (λ(a',rbytes,fs'').
-                  if f a' then
-                    make_io_event a rbytes:::stree_trace2 q f fs'' (g a')
-                  else stree_trace2 q f fs'' (g a')) (q ffi a))|st|T}’>>
-  rw[] >- metis_tac[]>>
-  Cases_on ‘st’
-  >- (disj1_tac>>simp[])
-  >- (Cases_on ‘stree_trace q f ffi u’>>fs[]
-      >-(fs[stree_trace_def]>>
-         fs[Once LUNFOLD]>>
-         Cases_on ‘u’>>gvs[Once stree_trace2_simp]
+  simp[IMAGE_DEF,EXTENSION,PULL_EXISTS]>>
+  simp[EQ_IMP_THM]>>
+  simp[PULL_EXISTS,PULL_FORALL]>>
+  rpt gen_tac>>
+  ‘∀k. (SND (evaluate (prog, s with clock := k))).ffi.io_events
+             = s.ffi.io_events ++
+               DROP (LENGTH s.ffi.io_events)
+                    (SND (evaluate (prog, s with clock := k))).ffi.io_events’ by
+    (strip_tac>>
+     qpat_abbrev_tac ‘X = evaluate _’>>
+     Cases_on ‘X’>>fs[]>>
+     imp_res_tac panPropsTheory.evaluate_io_events_mono>>
+     fs[IS_PREFIX_APPEND]>>
+     fs[DROP_APPEND])>>rw[]>- metis_tac[]>>
+  qexists ‘k'’>>gvs[]
+QED
 
-
-
->>gvs[]
-  >- (Cases_on ‘stree_trace q f ffi u’>>fs[]
-      >- (fs[Once stree_trace_simp,Once stree_trace2_simp]>>
-
-
-          >- (Casesdisj2_tac>>disj1_tac
-        
-  
+Theorem initial_io_events_LAPPEND:
+  LUB
+   {fromList
+    (SND (evaluate (prog,s with clock := k))).ffi.io_events | k | T} =
+  LAPPEND (fromList s.ffi.io_events)
+   (LUB {fromList
+      (DROP (LENGTH s.ffi.io_events)
+ (SND (evaluate (prog,s with clock := k))).ffi.io_events)|k|s.clock < k})
+Proof
+  irule EQ_TRANS>>
+  irule_at Any (GSYM LUB_LAPPEND_fromList)>>
+  qmatch_goalsub_abbrev_tac ‘lprefix_chain X’>>
+  conj_tac >-
+   (simp[Abbr‘X’]>>
+    irule (iffRL lprefix_chain_LAPPEND)>>
+    qexists ‘s.ffi.io_events’>>
+(*
+    irule lprefix_chain_subset>>
+    qexists ‘IMAGE fromList
+      (IMAGE (λx. s.ffi.io_events ++ x)
+         {DROP (LENGTH s.ffi.io_events)
+         (SND (evaluate (prog,s with clock := k))).ffi.io_events | k | T})’>>
+    reverse conj_tac >-
+     (simp[SUBSET_DEF,EXTENSION,PULL_EXISTS,LAPPEND_fromList]>>
+      rpt strip_tac>>metis_tac[])>>
+*)
+    qpat_abbrev_tac ‘X = IMAGE _ _’>>
+    ‘X = IMAGE fromList
+           (IMAGE (λx. s.ffi.io_events ++ x)
+                  {DROP (LENGTH s.ffi.io_events)
+                  (SND (evaluate (prog,s with clock := k))).ffi.io_events | k | s.clock < k})’
+      by simp[IMAGE_DEF,Abbr‘X’,EXTENSION,PULL_EXISTS,
+              LAPPEND_fromList]>>
+    simp[]>>
+    irule prefix_chain_lprefix_chain>>
+    simp[GSYM evaluate_io_events_prefix]>>
+    simp[prefix_chain_def]>>
+    rpt strip_tac>>
+    Cases_on ‘k < k'’>>fs[NOT_LESS]
+    >- (drule_then (assume_tac o GSYM) LESS_ADD>>gvs[]>>
+        disj1_tac>>
+        irule IS_PREFIX_TRANS>>
+        irule_at Any panPropsTheory.evaluate_add_clock_io_events_mono>>
+        qexists_tac ‘p’>>fs[])>>
+    drule_then (assume_tac o GSYM) LESS_EQUAL_ADD>>gvs[]>>
+    disj2_tac>>
+    irule IS_PREFIX_TRANS>>
+    irule_at Any panPropsTheory.evaluate_add_clock_io_events_mono>>
+    qexists_tac ‘p’>>fs[])>>
+  conj_tac >-
+   (simp[Abbr‘X’]>>
+    CCONTR_TAC>>gvs[EXTENSION,NOT_LESS]>>
+    first_x_assum $ qspec_then ‘SUC s.clock’ assume_tac>>gvs[])>>
+  irule EQ_TRANS>>
+  irule_at Any lprefix_chain_LUB_upper>>
+  qexists ‘s.clock’>>
+  AP_TERM_TAC>>
+  simp[Abbr‘X’]>>
+  irule EQ_TRANS>>
+  qexists ‘IMAGE fromList (IMAGE (λx. s.ffi.io_events ++ x)
+                                 {DROP (LENGTH s.ffi.io_events)
+      (SND (evaluate (prog,s with clock := k))).ffi.io_events | k | s.clock < k})’>>
+  reverse conj_tac >- simp[EXTENSION,LAPPEND_fromList,PULL_EXISTS]>>
+  irule EQ_TRANS>>
+  qexists ‘IMAGE fromList {(SND (evaluate (prog,s with clock := k))).ffi.io_events | k | s.clock < k}’>>
+  conj_tac>- simp[EXTENSION,PULL_EXISTS]>>
+  AP_TERM_TAC>>
+  irule evaluate_io_events_prefix
 QED
 
 Theorem temp:
-  (∀k. FST (evaluate (prog,reclock s with clock := k)) = SOME TimeOut) ∧
-  (∀p. ¬(ltree_lift query_oracle s.ffi (mrec_sem (h_prog (prog,s))) ≈
+  (∀k. FST (evaluate (prog,s with clock := k)) = SOME TimeOut) ∧
+  (∀p. ¬(ltree_lift query_oracle s.ffi (mrec_sem (h_prog (prog,unclock s))) ≈
              Ret p)) ∧
   good_dimindex (:α) ⇒
   fromList s.ffi.io_events
   ++ₗstree_trace query_oracle event_filter s.ffi
-                 (to_stree (mrec_sem (h_prog (prog,s)))) =
+                 (to_stree (mrec_sem (h_prog (prog,unclock s)))) =
   LUB (IMAGE
-       (λk. fromList (SND (evaluate (prog,reclock s with clock := k))).ffi.
+       (λk. fromList (SND (evaluate (prog:'a prog,s with clock := k))).ffi.
                     io_events) 𝕌(:num))
 Proof
   strip_tac>>
   simp[IMAGE_DEF]>>
-  simp[LNTH_EQ]>>
-  Induct>>simp[LNTH_LAPPEND,LNTH_fromList]
-  
-                               
-QED
+  irule EQ_TRANS>>
+  irule_at Any (GSYM initial_io_events_LAPPEND)>>
+  simp[LFINITE_fromList,LAPPEND11_FINITE1]>>
+(***)
 
-panPropsTheory.evaluate_add_clock_io_events_mono |> SIMP_RULE std_ss [IS_PREFIX_APPEND]
+QED
 
 (* Final goal:
 
