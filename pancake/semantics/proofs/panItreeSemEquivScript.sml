@@ -77,7 +77,6 @@ End
 
 (* ltree is the monad of leaves of an mtree (essentially branches that contain
 only Ret and Tau nodes).
-
 ltree_lift lifts the mtree monad into the ltree monad and satisfies the usual
 monad transformer laws. *)
 
@@ -3770,6 +3769,216 @@ Proof
   irule evaluate_io_events_prefix
 QED
 
+(* tame FLATTEN *)
+
+Definition stree_trace2_def:
+  stree_trace2 f p fs ^st =
+  LUNFOLD
+  (λ(fs',t). case t of
+               Ret r => NONE
+             | Tau u => (case some (e,k). u ≈ (Vis e k) of
+                         | SOME (e,k) =>
+                             (let (a,rbytes,fs'') = f fs' e in
+                                if p a then
+                                  SOME ((fs'',k a),make_io_event e rbytes)
+                                else
+                                  NONE)
+                         | _ => NONE)
+             | Vis e k => let (a,rbytes,fs'') = f fs' e in
+                            if p a then
+                              SOME ((fs'',k a),make_io_event e rbytes)
+                            else
+                              NONE)
+  (fs,st)
+End
+
+Theorem stree_trace_eq:
+  stree_trace f p fs st = stree_trace2 f p fs st
+Proof
+  simp[stree_trace_def]>>
+  simp[Once LFLATTEN]>>rw[]
+  >- (simp[stree_trace2_def]>>
+      Cases_on ‘st’>>gvs[Once LUNFOLD]
+      >- gvs[Once LUNFOLD]>>
+      cheat>>
+      FULL_CASE_TAC>>gvs[Once LUNFOLD]
+      >- (pairarg_tac>>gvs[]>>
+          IF_CASES_TAC>>gvs[])>>
+      pairarg_tac>>gvs[]>>
+      FULL_CASE_TAC>>
+      FULL_CASE_TAC>>
+
+  irule EQ_SYM>>
+
+
+
+
+  irule LUNFOLD_EQ>>
+  simp[stree_trace_def,Once LUNFOLD]>>
+  
+  qexists ‘CURRY {((fs,st),LFLATTEN
+            (case
+               case st of
+                 Ret r => NONE
+               | Tau u => SOME ((fs,u),[||])
+               | Vis e k =>
+                 (λ(a,rbytes,fs'').
+                      if p a then
+                        SOME ((fs'',k a),[|make_io_event e rbytes|])
+                      else SOME ((fs'',k a),[||])) (f fs e)
+             of
+               NONE => [||]
+             | SOME (v1,v2) =>
+               v2:::
+                   LUNFOLD
+                     (λ(fs',t).
+                          case t of
+                            Ret r => NONE
+                          | Tau u => SOME ((fs',u),[||])
+                          | Vis e k =>
+                            (λ(a,rbytes,fs'').
+                                 if p a then
+                                   SOME
+                                     ((fs'',k a),[|make_io_event e rbytes|])
+                                 else SOME ((fs'',k a),[||])) (f fs' e)) v1))}’>>
+  simp[]>>
+  Cases_on ‘st’>>simp[]>>
+  CASE_TAC>>gvs[]>>
+  >- (pop_assum mp_tac>>
+      DEEP_INTRO_TAC some_intro>>
+      rw[]>>gvs[]>>
+      simp[LFLATTEN_EQ_NIL]>>
+      simp[Once LUNFOLD]>>
+      CASE_TAC>>gvs[]
+
+  pairarg_tac>>fs[]
+
+QED
+
+(*
+Theorem stree_trace_evaluate_LPREFIX:
+  (∀k. ∃s'. evaluate (prog:'a prog,reclock s with clock := k) = (SOME TimeOut,s')) ∧
+  (∀p. ¬(ltree_lift query_oracle s.ffi (mrec_sem (h_prog (prog,s))) ≈ Ret p)) ∧
+  good_dimindex (:α) ⇒
+  LPREFIX
+  (fromList s.ffi.io_events
+   ++ₗ  stree_trace query_oracle event_filter s.ffi
+        (to_stree (mrec_sem (h_prog (prog,s)))))
+  (LUB {fromList (SND (evaluate (prog,reclock s with clock := k))).ffi.io_events|k|T})
+Proof
+QED
+*)
+
+(* move *)
+Theorem LLENGTH_NONE_infinite:
+  LLENGTH ls = NONE ⇔ ¬LFINITE ls
+Proof
+  simp[LFINITE_LLENGTH]>>
+  Cases_on ‘LLENGTH ls’>>simp[]
+QED
+
+Theorem evaluate_stree_trace_eq:
+  (∀k. FST (evaluate (prog,s with clock := k)) = SOME TimeOut) ∧
+  (∀p. ¬(ltree_lift query_oracle s.ffi (mrec_sem (h_prog (prog,unclock s))) ≈
+                    Ret p)) ∧
+  good_dimindex (:α) ⇒
+  fromList s.ffi.io_events
+  ++ₗstree_trace query_oracle event_filter s.ffi
+                 (to_stree (mrec_sem (h_prog (prog,unclock s)))) =
+  LUB (IMAGE
+       (λk. fromList (SND (evaluate (prog:'a prog,s with clock := k))).ffi.
+                     io_events) 𝕌(:num))
+Proof
+  strip_tac>>
+  simp[IMAGE_DEF]>>
+  (***)
+  irule EQ_TRANS>>
+  irule_at Any (GSYM initial_io_events_LAPPEND)>>
+  simp[LFINITE_fromList,LAPPEND11_FINITE1]>>
+  (***)
+
+  simp[lprefix_lubTheory.build_lprefix_lub_def]
+      simp[Once LUNFOLD]
+
+                simp[stree_trace_def]
+
+
+
+  simp[Once LLIST_BISIMULATION0]>>
+  qexists ‘CURRY {(option_CASE (LDROP n (stree_trace query_oracle event_filter s.ffi
+                 (to_stree (mrec_sem (h_prog (prog,unclock s)))))) LNIL (λx.x),
+                   option_CASE (LDROP n (LUB {fromList
+                    (DROP (LENGTH s.ffi.io_events)
+                       (SND (evaluate (prog,s with clock := k))).ffi.
+                       io_events) |
+                  k |
+                  s.clock < k})) LNIL (λx.x)) | n | T}’>>
+  simp[EXISTS_PROD]>>fs[]>>
+  rw[]
+  >- (qexists ‘0’>>simp[])>>
+
+  qpat_abbrev_tac ‘X = stree_trace _ _ _ _’>>
+  qpat_abbrev_tac ‘Y = LUB _’>>
+  Cases_on ‘X’>>Cases_on ‘Y’>>fs[LDROP_THM]
+  >- (disj1_tac  >> simp[]>>
+      Induct_on ‘n’>>simp[])
+  >- cheat (* uneven *)
+  >- cheat (* uneven *) >>
+
+  Cases_on ‘LLENGTH (h:::t)’
+  
+  >-(disj2_tac>>
+     imp_res_tac (iffLR LLENGTH_NONE_infinite)>>
+     imp_res_tac NOT_LFINITE_DROP>>
+    
+     Cases_on ‘n’>>gvs[]>>
+     conj_tac >- cheat (* equal heads *) >>
+     qexists ‘1’>>gvs[])>>
+  first_assum $ qspec_then ‘SUC n'’ mp_tac>>
+  rewrite_tac[LDROP_THM,LTAKE_THM]>>
+  strip_tac>>fs[]>>
+  cheat
+
+  disch_then $ assume_tac o GSYM>>fs[]>>
+  ‘LDROP n' t’
+  
+     CASE_TAC>>gvs[]
+
+
+     >- (Cases_on ‘n’>>gvs[]
+                                
+                          
+  >- (
+      fs[LLENGTH,infinite_lnth_some]>>
+      MAP_EVERY qid_spec_tac [‘t’,‘h’,‘t'’,‘h'’,‘n’]>>
+      Induct_on ‘n’>>fs[]>>rpt gen_tac>>
+      >- (Cases_on ‘X’>>Cases_on ‘Y’>>fs[]
+          >- cheat>>
+          (conj_tac >- cheat >> qexists ‘SUC 0’>>
+           fs[FUNPOW_SUC]))
+      >- (disj1_tac>>simp[FUNPOW_SUC] >>cheat
+                                        
+           
+          
+      reverse conj_asm1_tac>>
+      
+
+
+
+
+  rpt (pop_assum mp_tac)>>
+  MAP_EVERY [
+  Induct_on ‘n’>>gvs[]>>rw[]
+  >- (disj1_tac>>cheat)>>
+  disj2_tac>>simp[]>>
+  conj_tac>>gvs[FUNPOW_SUC]
+  >- (pop_assum $ mp_tac o GSYM>>
+      pop_assum $ assume_tac o GSYM>>
+      strip_tac>>fs[]>>
+  
+  cheat
+QEDh
+
 (* Final goal:
 
    1. For every path that can be generated frong
@@ -3800,17 +4009,8 @@ Proof
       reverse CONJ_TAC
       (* Case: ltree_lift and evaluate diverge... *)
       >- (rw [FORALL_PROD] >>fs[GSYM FORALL_PROD]>>
-          irule (iffLR lprefix_lubTheory.build_prefix_lub_intro)>>
-          conj_asm2_tac
-          >- (irule lprefix_lubTheory.lprefix_lub_is_chain>>metis_tac[])>>
-          simp[lprefix_lubTheory.lprefix_lub_def]>>fs[]>>
-          conj_asm1_tac>>rpt strip_tac>>gvs[]
-          >- (first_x_assum $ qspec_then ‘k’ assume_tac>>
-              irule evaluate_stree_trace_LPREFIX>>gvs[]>>
-              qmatch_asmsub_abbrev_tac ‘FST X’>>Cases_on ‘X’>>
-              gvs[]>>metis_tac[])>>
-          (* least upper bound *)
-          cheat)
+          irule EQ_TRANS>>
+          irule_at Any evaluate_stree_trace_eq>>gvs[])
       (* False cases: ltree_lift converges and evalate diverges... *)
       >- (simp [FORALL_PROD] >> rw [] >>
           spose_not_then kall_tac >>
