@@ -4024,12 +4024,255 @@ Proof
   irule evaluate_io_events_prefix
 QED
 
+(*
+
+    0.  good_dimindex (:α)
+    1.  ∀p. ¬(ltree_lift query_oracle s.ffi
+               (mrec_sem (h_prog (Call o' e l,unclock s))) ≈ Ret p)
+    2.  ∀k. k' ≤ k ⇒
+            LENGTH
+              (SND (evaluate (Call o' e l,s with clock := k))).ffi.io_events =
+            LENGTH
+              (SND (evaluate (Call o' e l,s with clock := k'))).ffi.io_events
+   ------------------------------------
+        LFINITE
+          (stree_trace query_oracle event_filter s.ffi
+             (to_stree (mrec_sem (h_prog (Call o' e l,unclock s)))))
+   
+    0.  ∀s. good_dimindex (:α) ∧
+            (∀p. ¬(ltree_lift query_oracle s.ffi
+                    (mrec_sem (h_prog (prog,unclock s))) ≈ Ret p)) ∧
+            (∃k'. ∀k.
+               k' ≤ k ⇒
+               LENGTH (SND (evaluate (prog,s with clock := k))).ffi.io_events =
+               LENGTH
+                 (SND (evaluate (prog,s with clock := k'))).ffi.io_events) ⇒
+            LFINITE
+              (stree_trace query_oracle event_filter s.ffi
+                 (to_stree (mrec_sem (h_prog (prog,unclock s)))))
+    1.  good_dimindex (:α)
+    2.  ∀p. ¬(ltree_lift query_oracle s.ffi
+               (mrec_sem (h_prog (While e prog,unclock s))) ≈ Ret p)
+    3.  ∀k. k' ≤ k ⇒
+            LENGTH
+              (SND (evaluate (While e prog,s with clock := k))).ffi.io_events =
+            LENGTH
+              (SND (evaluate (While e prog,s with clock := k'))).ffi.
+              io_events
+   ------------------------------------
+        LFINITE
+          (stree_trace query_oracle event_filter s.ffi
+             (to_stree (mrec_sem (h_prog (While e prog,unclock s)))))
+
+*)
+
+Theorem while_evaluate_unfold:
+  (∃w. eval s e = SOME (ValWord w) ∧ w ≠ 0w) ∧
+  0 < s.clock ⇒
+  ∃k. k < s.clock ∧
+      SND (evaluate (While e p, s)) =
+      empty_locals (FUNPOW (λx. SND (evaluate (p,dec_clock x))) k s)
+Proof
+  qid_spec_tac ‘s’>>
+  completeInduct_on ‘s.clock’>>rw[]
+  simp[Once evaluate_def]>>
+  Cases_on ‘evaluate (p,dec_clock s)’>>fs[]>>
+  CASE_TAC
+  >- (imp_res_tac evaluate_clock>>
+      last_x_assum $ qspec_then ‘r.clock’ mp_tac>>
+      impl_tac >- fs[dec_clock_def]>>strip_tac>>
+      last_x_assum $ qspec_then ‘r’ mp_tac>>fs[]>>
+      impl_tac >- cheat>>strip_tac>>
+      qexists ‘SUC k’>>fs[FUNPOW]>>fs[dec_clock_def]
+                   
+      g
+      
+
+  CASE_TAC>>
+  rpt (CASE_TAC>>fs[])>>
+      
+QED
+
+
+Theorem while_lemma:
+  (∀w. ¬(ltree_lift query_oracle s.ffi (mrec_sem (h_prog (While e p, unclock s))) ≈ Ret w)) ∧
+  (∃w. ltree_lift query_oracle s.ffi (mrec_sem (h_prog (p,unclock s))) ≈ Ret w) ∧
+  good_dimindex (:'a) ⇒
+  ∃k. k ≤ s.clock ∧
+      SND (evaluate (While e p:'a prog, s)) =
+      (if (dec_clock s).clock = 0 then empty_locals s
+       else SND (FUNPOW (λ(r,t). evaluate (p,dec_clock t))
+                        k (evaluate (p,dec_clock s))))
+Proof
+  qid_spec_tac ‘s’>>
+  completeInduct_on ‘s.clock’>>rw[]>>
+  Cases_on ‘s.clock’>>fs[]
+  >- (simp[Once evaluate_def]>>
+      qpat_x_assum ‘∀p.¬ _’ mp_tac>>
+      simp[Once mrec_sem_while_unfold,
+           mrec_sem_simps,ltree_lift_cases,
+           panPropsTheory.eval_upd_clock_eq]>>
+      CASE_TAC>>fs[mrec_sem_simps,ltree_lift_cases]
+      >- fs[Once itree_wbisim_cases]>>
+      CASE_TAC>>fs[mrec_sem_simps,ltree_lift_cases]
+      >> TRY (fs[Once itree_wbisim_cases]>>NO_TAC)>>
+      CASE_TAC>>fs[mrec_sem_simps,ltree_lift_cases]
+      >> TRY (fs[Once itree_wbisim_cases]>>NO_TAC)>>
+      CASE_TAC>>fs[mrec_sem_simps,ltree_lift_cases]>>
+      fs[Once itree_wbisim_cases])>>
+
+  Cases_on ‘evaluate (p,dec_clock s)’>>fs[]>>
+  drule_then drule ltree_lift_corres_evaluate>>
+  strip_tac>>fs[]>>
+  ‘(dec_clock s).ffi = s.ffi’ by simp[dec_clock_def]>>
+
+  qpat_x_assum ‘∀p.¬ _’ mp_tac>>
+  simp[Once mrec_sem_while_unfold,
+       mrec_sem_simps,ltree_lift_cases,
+       panPropsTheory.eval_upd_clock_eq]>>
+
+  CASE_TAC>>fs[mrec_sem_simps,ltree_lift_cases]
+  >- fs[Once itree_wbisim_cases]>>
+  CASE_TAC>>fs[mrec_sem_simps,ltree_lift_cases]
+  >> TRY (fs[Once itree_wbisim_cases]>>NO_TAC)>>
+  CASE_TAC>>fs[mrec_sem_simps,ltree_lift_cases]
+  >> TRY (fs[Once itree_wbisim_cases]>>NO_TAC)>>
+  CASE_TAC>>fs[mrec_sem_simps,ltree_lift_cases]
+  >> TRY (fs[Once itree_wbisim_cases]>>NO_TAC)>>
+  simp[ltree_lift_monad_law,msem_lift_monad_law]>>strip_tac>>fs[]>>
+  Cases_on ‘w’>>
+  drule_then drule (iffLR ret_bind_nonret)>>strip_tac>>
+  imp_res_tac ltree_lift_state_lift'>>fs[]>>
+  gvs[mrec_sem_simps,ltree_lift_cases]>>
+  Cases_on ‘q'’>>fs[]>>
+  TRY (rename1 ‘(SOME x,r)’>>Cases_on ‘x’)>>
+  gvs[mrec_sem_simps,ltree_lift_cases]>>
+  TRY (fs[Once itree_wbisim_cases]>>NO_TAC)>>
+  simp[Once evaluate_def]>>
+  (Cases_on ‘q ≠ SOME TimeOut ∧ q ≠ SOME Error’>>fs[]
+  >- (drule_then rev_drule wbisim_Ret_unique>>
+      strip_tac>>gvs[]>>
+      imp_res_tac evaluate_clock>>
+      last_x_assum $ qspec_then ‘r.clock’ mp_tac>>
+      impl_tac >- fs[dec_clock_def]>>strip_tac>>
+      last_x_assum $ qspec_then ‘r’ assume_tac>>fs[]>>rfs[]>>
+      Cases_on ‘r.clock’>>fs[]
+      >- (qexists ‘0’>>fs[FUNPOW]>>rfs[]
+          qpat_x_assum ‘∀p.¬ (_ >>= _ ≈ _)’ mp_tac>>
+          simp[Once mrec_sem_while_unfold,
+               mrec_sem_simps,ltree_lift_cases,
+               panPropsTheory.eval_upd_clock_eq]>>
+          CASE_TAC>>fs[mrec_sem_simps,ltree_lift_cases]
+          >- fs[Once itree_wbisim_cases]>>
+          CASE_TAC>>fs[mrec_sem_simps,ltree_lift_cases]
+          >> TRY (fs[Once itree_wbisim_cases]>>NO_TAC)>>
+          CASE_TAC>>fs[mrec_sem_simps,ltree_lift_cases]
+          >> TRY (fs[Once itree_wbisim_cases]>>NO_TAC)>>
+          CASE_TAC>>fs[mrec_sem_simps,ltree_lift_cases]>>
+          TRY (fs[Once itree_wbisim_cases]>>NO_TAC)
+strip_tac>>fs[]
+)>>
+      qpat_x_assum ‘∀p.¬ _’ mp_tac>>
+      simp[Once mrec_sem_while_unfold,
+           mrec_sem_simps,ltree_lift_cases,
+           panPropsTheory.eval_upd_clock_eq]>>
+      CASE_TAC>>fs[mrec_sem_simps,ltree_lift_cases]
+      >- fs[Once itree_wbisim_cases]>>
+      CASE_TAC>>fs[mrec_sem_simps,ltree_lift_cases]
+      >> TRY (fs[Once itree_wbisim_cases]>>NO_TAC)>>
+      CASE_TAC>>fs[mrec_sem_simps,ltree_lift_cases]
+      >> TRY (fs[Once itree_wbisim_cases]>>NO_TAC)>>
+      CASE_TAC>>fs[mrec_sem_simps,ltree_lift_cases]
+      >> TRY (fs[Once itree_wbisim_cases]>>NO_TAC)>>
+      simp[ltree_lift_monad_law,msem_lift_monad_law]>>strip_tac>>
+      qmatch_asmsub_abbrev_tac ‘X >>= Y’>>
+      Cases_on ‘∃p. X ≈ Ret p’
+      >- (gvs[]>>
+          qexists ‘SUC k’>>simp[FUNPOW]>>
+          fs[dec_clock_def]e)>>
+      fs[Abbr‘X’]>>
+      drule_then drule nonret_imp_timeout'>>strip_tac>>gvs[]>>
+      simp[Once evaluate_def]>>
+      first_x_assum $ qspec_then ‘(dec_clock r').clock’ assume_tac>>
+      fs[]>>
+      ‘r' with clock := (dec_clock r').clock = dec_clock r'’
+        by simp[dec_clock_def]>>fs[]>>
+      qexists ‘SUC (SUC 0)’>>simp[FUNPOW]>>
+      fs[dec_clock_def]>>
+      cheat (* s = empty_locals _ :FIX *))
+  (* q = SOME TimeOut *)
+  >- (qexists ‘SUC 0’>>simp[FUNPOW]>>
+      cheat (* s = empty_locals _ :FIX *))
+(* q = SOME Error *)
+  >- (qexists ‘SUC 0’>>simp[FUNPOW]>>
+      cheat (* s = empty_locals _ :FIX *)))
+
+
+
+
+    >- (qexists ‘SUC 0’>>simp[FUNPOW]>>
+                                                                
+
+
+
+      fs[dec_clock_def]>>rfs[]>>
+      simp[Once evaluate_def]>>
+      simp[dec_clock_def]>>
+      irule EQ_TRANS>>
+      first_x_assum $ irule_at Any>>
+
+                                         
+
+  CASE_TAC>>fs[mrec_sem_simps,ltree_lift_cases]
+  >- fs[Once itree_wbisim_cases]>>
+  CASE_TAC>>fs[mrec_sem_simps,ltree_lift_cases]
+  >- fs[Once itree_wbisim_cases]>>
+
+  simp[Once evaluate_def,panPropsTheory.eval_upd_clock_eq,
+           dec_clock_def]>>
+      rpt CASE_TAC>>fs[])>>
+  simp[Once evaluate_def,panPropsTheory.eval_upd_clock_eq,
+       dec_clock_def]>>
+  CASE_TAC>>fs[]
+  >- (fs[FUNPOW,panPropsTheory.eval_upd_clock_eq]
+  CASE_TAC>>fs[]>>
+  CASE_TAC>>fs[]>>
+  CASE_TAC>>fs[FUNPOW_SUC]>>
+  CASE_TAC>>fs[FUNPOW_SUC]>>
+  TRY pairarg_tac>>fs[]>>
+  
+  CASE_TAC>>fs[]>- cheat (* k = 0 *) >>
+  CASE_TAC>>fs[]>- cheat (* eval s e = NONE *) >>
+  rpt CASE_TAC>>fs[]>- (* eval s e in the right form, not false *) >>
+  pairarg_tac>>fs[]>>
+  CASE_TAC>>fs[dec_clock_def]>- (* res = NONE *) >>
+  imp_res_tac evaluate_clock>>fs[]>>
+              
+  simp[Once evaluate_def,panPropsTheory.eval_upd_clock_eq]>>
+  CASE_TAC>>fs[]>- cheat (* k = 0 *) >>
+  CASE_TAC>>fs[]>- cheat (* eval s e = NONE *) >>
+  rpt CASE_TAC>>fs[]>- (* eval s e in the right form, not false *) >>
+  pairarg_tac>>fs[]>>
+  CASE_TAC>>fs[dec_clock_def]>- (* res = NONE *) >>
+  imp_res_tac evaluate_clock>>fs[]>>                                
+
+  
+        CAS
+
+
+  cheat (* eval s e = NONE *) >>
+QED
+
 Theorem evaluate_finite_LFINITE:
   ∀prog s.
   good_dimindex (:'a) ∧
   (∀p. ¬(ltree_lift query_oracle s.ffi (mrec_sem (h_prog (prog,unclock s))) ≈ Ret p)) ∧
   (∃k'. ∀k. k' ≤ k ⇒ LENGTH (SND (evaluate (prog:'a prog,s with clock := k))).ffi.io_events = LENGTH (SND (evaluate (prog:'a prog,s with clock := k'))).ffi.io_events) ⇒
-  LFINITE (stree_trace query_oracle event_filter s.ffi (to_stree (mrec_sem (h_prog (prog,unclock s)))))
+  LFINITE (stree_trace query_oracle event_filter s.ffi (to_stree (mrec_sem (h_prog (prog,unclock s))))) (*∧
+  LENGTH (stree_trace query_oracle event_filter s.ffi (to_stree (mrec_sem (h_prog (prog,unclock s))))) =
+  LENGTH (LUB
+   {fromList
+    (SND (evaluate (prog,s with clock := k))).ffi.io_events | k | T})*)
 Proof
   Induct>>rw[]>>
   TRY (simp[h_prog_def,
@@ -4236,8 +4479,14 @@ Proof
                  fs[SimpR“$=”,Once evaluate_def,empty_locals_defs
                     ,panPropsTheory.eval_upd_clock_eq]>>
                  fs[dec_clock_def]>>
-             drule_then rev_drule nonret_imp_timeout>>strip_tac>>fs[]>>
                  ‘p - 1 + k = k + p - 1’ by simp[]>>fs[]>>
+
+                 (***try**)
+                 drule_then rev_drule nonret_imp_timeout>>strip_tac>>fs[]>>
+                 first_assum $ qspec_then ‘k'' + p-1’ assume_tac>>fs[]>>
+                 fs[]>>
+
+
              drule LESS_EQUAL_ADD>>strip_tac>>fs[]>>
 cheat)>>
 (*
