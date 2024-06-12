@@ -1,4 +1,4 @@
-p(*
+(*
     Proof of correspondence between functional big-step
     and itree semantics for Pancake.
 *)
@@ -4066,7 +4066,7 @@ QED
 
 *)
 
-Theorem FUNPOW_bind:
+Theorem FUNPOW_Tau_bind:
   FUNPOW Tau n t >>= g = FUNPOW Tau n (t >>= g)
 Proof
   MAP_EVERY qid_spec_tac [‘t’,‘n’]>>
@@ -4160,6 +4160,140 @@ Proof
   assume_tac stree_trace_spin_LNIL>>fs[]
 QED
 
+CoInductive sensible:
+[~ret:]
+  ∀r. sensible p (Ret r)
+[~tau:]
+  ∀t. sensible p ((Tau t))
+[~vis:]
+  ∀e k.
+    (∀a. ¬p a ⇒ ∃ev st. SND e a = (SOME(FinalFFI ev),st)) ∧
+    (∀res st.
+          (∀ev. res ≠ SOME(FinalFFI ev) ⇒ sensible p (k(res,st))) ∧
+          (∃ev. res = SOME(FinalFFI ev) ⇒ k(res,st) ≈ Ret(SOME(FinalFFI ev), st)))
+        ⇒ sensible p (Vis e k)
+End
+
+Theorem bla:
+  sensible event_filter (mrec_sem(h_prog (prog,s)))
+Proof
+  irule sensible_coind>>
+  qexists ‘{t|t = mrec_sem (h_prog (prog,s))}’>>
+  simp[]>>
+(*  conj_tac >- 
+   (simp[EXISTS_PROD]>>metis_tac[])>>*)
+  gvs[EXISTS_PROD,PULL_EXISTS]>>
+  rpt strip_tac>>gvs[]>>
+  Cases_on ‘prog’>>
+  TRY (rw[h_prog_def,
+            h_prog_rule_assign_def,
+            h_prog_rule_raise_def,
+            h_prog_rule_return_def,
+            h_prog_rule_ext_call_def,
+            h_prog_rule_store_def,
+            h_prog_rule_dec_def,
+            h_prog_rule_seq_def,
+            h_prog_rule_while_def,
+            h_prog_rule_call_def,
+            h_prog_rule_cond_def,
+            h_prog_rule_store_byte_def,
+            panPropsTheory.eval_upd_clock_eq,
+            LAPPEND_NIL_2ND,empty_locals_defs,
+            msem_lift_monad_law,
+            mrec_sem_simps,to_stree_simps,stree_trace_simps]>>
+       rpt (PURE_CASE_TAC>>
+            simp[mrec_sem_simps,to_stree_simps,stree_trace_simps,
+            msem_lift_monad_law,
+                 stree_trace_Vis,LAPPEND_NIL_2ND])>>NO_TAC)
+
+  >- (rw[Once mrec_sem_while_unfold,mrec_sem_simps,sensible_rules]>>
+      rpt (CASE_TAC>>gvs[mrec_sem_simps,sensible_rules])>>
+      simp[h_prog_def,h_prog_rule_dec_def,mrec_sem_simps]
+      irule sensible_tau
+                
+      gvs[mrec_sem_simps,msem_lift_monad_law]>>
+
+cheat
+      >- (rw[h_prog_def,h_prog_rule_ext_call_def,
+             mrec_sem_simps]>>
+          rpt (CASE_TAC>>gvs[mrec_sem_simps])>>
+          conj_tac>-
+           (rpt strip_tac>>
+            Cases_on ‘a’>>fs[event_filter_def])>>
+          rpt gen_tac>>
+          simp[PULL_FORALL]>>
+          Cases_on ‘∃ev. res = SOME (FinalFFI ev)’>>fs[]
+          conj_tac>>B
+            
+      simp[h_prog_def,h_prog_rule_dec_def,mrec_sem_simps]
+      irule sensible_tau
+                
+      gvs[mrec_sem_simps,msem_lift_monad_law]>>
+        
+      qpat_abbrev_tac ‘X = mrec_sem _’>>
+      Cases_on ‘X’>>gvs[mrec_sem_simps]>>
+      TRY pairarg_tac>>gvs[mrec_sem_simps]>>
+                         
+      
+
+
+
+
+  reverse conj_tac >-
+   (simp[PULL_EXISTS]>>
+    rpt strip_tac>>
+    pop_assum $ assume_tac o PURE_ONCE_REWRITE_RULE[sensible_cases]>>
+    fs[]
+    >- (Cases_on ‘r’>>metis_tac[])>>
+    >- (gvs[SF DNF_ss]>>
+        Cases_on ‘e’>>gvs[]>>
+        rpt strip_tac>>
+        
+        gvs[PULL_EXISTS]>>
+  
+                
+
+
+
+
+rw[h_prog_def, h_prog_rule_dec_def,
+     panPropsTheory.eval_upd_clock_eq,
+     mrec_sem_simps]>>
+
+  fs[]
+
+            h_prog_rule_assign_def,
+            h_prog_rule_raise_def,
+            h_prog_rule_return_def,
+            h_prog_rule_ext_call_def,
+            h_prog_rule_store_def,
+            h_prog_rule_store_byte_def,
+            panPropsTheory.eval_upd_clock_eq,
+            LAPPEND_NIL_2ND,empty_locals_defs,
+            mrec_sem_simps,to_stree_simps,stree_trace_simps]>>
+  CASE_TAC>>simp[mrec_sem_simps]>>
+       rpt (PURE_CASE_TAC>>
+            simp[mrec_sem_simps,to_stree_simps,stree_trace_simps,
+            msem_lift_monad_law,
+                 stree_trace_Vis,LAPPEND_NIL_2ND])>>
+  qpat_abbrev_tac ‘X = mrec_sem _’>>
+  Cases_on ‘X’>>
+  simp[mrec_sem_simps,to_stree_simps,stree_trace_simps]>>
+  fs[ELIM_UNCURRY]>>
+
+
+       pairarg_tac>>gvs[]>>
+       PURE_CASE_TAC>>gvs[]>>NO_TAC)
+
+
+  cheat
+QED
+
+
+
+
+
+
 Theorem LCONS_nonret_imp_Vis2:
   stree_trace q p st (to_stree ht) = h:::t ∧
   (∀p. ¬(ltree_lift q st ht ≈ Ret p)) ⇒
@@ -4205,14 +4339,6 @@ metis_tac[FUNPOW])>>
   imp_res_tac strip_tau_spin>>
   gvs[to_stree_spin]>>
   assume_tac stree_trace_spin_LNIL>>gvs[]
-QED
-
-Theorem FUNPOW_Tau_Vis_bind:
-  (FUNPOW Tau n (Vis e g)) >>= k
-  = FUNPOW Tau n (Vis e (λx. g x >>= k))
-Proof
-  Induct_on ‘n’>>fs[itree_bind_thm]>>
-  simp[FUNPOW_SUC]
 QED
 
 Theorem FUNPOW_Tau_neq[simp]:
@@ -4342,7 +4468,7 @@ Theorem FUNPOW_Tau_bind_Vis_thm:
 Proof
   Induct>>rw[FUNPOW_SUC]>>
   Cases_on ‘t’>>fs[itree_bind_thm]
-  FUNPOW_bind
+  FUNPOW_Tau_bind
 QED
                           
 Theorem clock_0_imp_LNIL:
@@ -4611,7 +4737,7 @@ Cases_on ‘n’>>fs[FUNPOW_SUC]>>
       Cases_on ‘X’>>fs[itree_bind_thm]>>
       pairarg_tac>>fs[mrec_sem_simps,to_stree_simps]
 
-      GSYM FUNPOW_bind]>>
+      GSYM FUNPOW_Tau_bind]>>
                (****)
         
       pairarg_tac>>gvs[]>>
