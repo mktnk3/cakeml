@@ -71,7 +71,7 @@ Definition stree_trace_def:
                               if p a then
                                 SOME ((fs'',k a),[|make_io_event e rbytes|])
                               else
-                                SOME ((fs'', k a),LNIL))
+                                NONE)
   (fs,st)
 End
 
@@ -1272,12 +1272,37 @@ Theorem stree_trace_Vis:
     else
       stree_trace f p st' (k a)
 Proof
+
+Theorem stree_trace_Vis:
+  stree_trace query_oracle event_filter st (Vis e k) =
+  let (a,rbytes,st') = query_oracle st e in
+    if event_filter a then
+      make_io_event e rbytes:::stree_trace query_oracle event_filter st' (k a)
+    else
+      stree_trace query_oracle event_filter st' (k a)
+Proof
   rw[stree_trace_def] >>
-  rw[Once LUNFOLD] >>
-  rw[ELIM_UNCURRY]
+  Cases_on ‘query_oracle st e’>>fs[]>>
+  Cases_on ‘q’>>fs[event_filter_def]
+  >- (rw[Once LUNFOLD] >>
+      simp[event_filter_def]>>
+      rw[ELIM_UNCURRY])>>
+  rw[ELIM_UNCURRY]>>
+  Cases_on ‘e’>>fs[query_oracle_def]>>
+  FULL_CASE_TAC>>fs[]>>
+  FULL_CASE_TAC>>fs[]>>
+  gvs[]>>
+  simp[Once LUNFOLD] >>
+  fs[query_oracle_def,event_filter_def]>>
+(*  
+  simp[Once LFLATTEN]>>
+  CASE_TAC>>simp[]
+
+  >- simp[Once LUNFOLD]
+*)
 QED
 
-Theorem stree_trace_bind_append:
+Theorem stree_trace_bind_append_orig:
   ltree_lift f st t ≈ Ret x
   ⇒ stree_trace f p st (to_stree t >>= k) =
     stree_trace f p st (to_stree t) ++ₗ stree_trace f p (ltree_lift_state f st t) (k x)
@@ -1294,6 +1319,37 @@ Proof
   gvs[ltree_lift_cases,to_stree_simps,itree_wbisim_neq,stree_trace_simps,
       stree_trace_Vis,ltree_lift_state_simps,ltree_lift_Vis_alt,ELIM_UNCURRY] >>
   IF_CASES_TAC >> gvs[]
+QED
+
+Theorem stree_trace_bind_append:
+  ltree_lift f st t ≈ Ret x
+  ⇒ stree_trace f p st (to_stree t >>= k) =
+    stree_trace f p st (to_stree t)
+    ++ₗ (if (∀a g. t = Vis a g ∧ ¬p (FST (f st (FST a)))) then LNIL
+         else stree_trace f p (ltree_lift_state f st t) (k x))
+Proof
+  strip_tac >> dxrule itree_wbisim_Ret_FUNPOW >>
+  simp[PULL_EXISTS] >>
+  MAP_EVERY qid_spec_tac [‘t’,‘st’] >>
+  Induct_on ‘n’
+  >- (rw[]>>fs[FUNPOW_SUC]>>
+      Cases_on ‘t’ >> rw[] >>
+      gvs[ltree_lift_cases,to_stree_simps,itree_wbisim_neq,stree_trace_simps,
+          ltree_lift_state_simps,ltree_lift_Vis_alt,ELIM_UNCURRY]) >>
+  rw[]>>fs[FUNPOW_SUC]>>
+
+
+  Cases_on ‘t’ >> rw[]>>
+  gvs[ltree_lift_cases,to_stree_simps,itree_wbisim_neq,stree_trace_simps,
+      stree_trace_Vis,ltree_lift_state_simps,ltree_lift_Vis_alt,ELIM_UNCURRY] >>
+  IF_CASES_TAC >> gvs[]>>
+
+  >- (last_x_assum $ qspecl_then [‘st’,‘u’] assume_tac>>gvs[]>>
+      
+  simp[stree_trace_def]>>
+  simp[Once LUNFOLD]>>
+      
+     
 QED
 
 Theorem stree_trace_ret_events:
