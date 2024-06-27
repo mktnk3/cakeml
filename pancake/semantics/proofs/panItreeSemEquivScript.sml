@@ -1292,6 +1292,7 @@ CoInductive sensible:
       ⇒ sensible p (Vis e k)
 End
 
+
 (* strong_coind *)
 Theorem sensible_strong_coind:
   (∀ht. R ht ⇒
@@ -1367,77 +1368,30 @@ QED
 Theorem sensible_wbisim:
   sensible p t ∧ t' ≈ t ⇒ sensible p t'
 Proof
-  cheat
-QED
-  strip_tac>>
-  Cases_on ‘∃h. strip_tau t h’>>fs[]
-  >- (Cases_on ‘h’>>fs[]>>
-      dxrule strip_tau_FUNPOW>>
-      strip_tac>>
-      fs[wbisim_FUNPOW_Tau]>>
-      fs[sensible_FUNPOW_Tau]
-      >- (imp_res_tac itree_wbisim_Ret_FUNPOW>>
-          fs[]>>
-          simp[sensible_FUNPOW_Tau])>>
-      pop_assum kall_tac>>
-(*
-      imp_res_tac itree_wbisim_Vis_FUNPOW>>
-      fs[]>>
-      simp[sensible_FUNPOW_Tau]>>
-*)
-      [irule sensible_strong_coind>>
-      qexists ‘{h |t' ≈ h ∨ (∃a g a' g'. t' = Vis a g ∧ Vis a' g' ⇒ ∀r. g r ≈ g' r)}’>>
-      simp[]>>rw[] >- (disj1_tac>>irule itree_wbisim_refl)>>
-      Cases_on ‘ht’>>fs[]>>
-      dxrule itree_wbisim_sym>>strip_tac>>
-      drule_then rev_drule itree_wbisim_trans>>
-      simp[Once itree_wbisim_cases]>>strip_tac>>
-      gvs[]>>
-      strip_tac>>
-      last_x_assum mp_tac>>
-      simp[Once sensible_cases]>>
-      strip_tac>>
-      first_x_assum $ qspec_then ‘a'’ assume_tac>>
-      gvs[]>>
-      qexists ‘ev’>>
-      qexists ‘st’>>
-      gvs[]>>
-      CASE_TAC>>fs[]
-  >- (first_x_assum $ qspec_then ‘(SOME (FinalFFI ev),st)’ assume_tac>>
-      irule itree_wbisim_trans>>
-      first_assum $ irule_at Any>>fs[])>>
-      disj1_tac>>
-      disj2_tac>>
-      first_x_assum $ irule_at Any>>
-      first_x_assum $ qspec_then ‘SND a a'’ assume_tac>>gvs[]>>
-      irule itree_wbisim_sym>>fs[])>>
-  Cases_on ‘ht’>>fs[]
-  >- (disj1_tac>>disj2_tac>>
-      metis_tac[])>>
-  strip_tac>>
-  qpat_x_assum ‘sensible p k’ mp_tac>>
-  simp[Once sensible_cases]>>
-  strip_tac>>gvs[]
-  >- fs[Once itree_wbisim_cases]
-  >- 
-
-  first_x_assum $ qspec_then ‘a''’ assume_tac>>
-  gvs[]>>
-  qexists ‘ev’>>
-  qexists ‘st’>>
-  gvs[]>>
-  CASE_TAC>>fs[]
-  >- (
-
-          disj1_tac>>metis_tac[]
-
-        
-
-
-      cheat)>>
-  imp_res_tac strip_tau_spin>>
-  gvs[]>>
-  dxrule spin_wbisim>>strip_tac>>fs[]
+  qid_spec_tac ‘t’>>
+  qid_spec_tac ‘t'’>>
+  simp[GSYM PULL_EXISTS]>>
+  ho_match_mp_tac sensible_strong_coind>>
+  rw[Once itree_wbisim_cases]
+  >- (disj1_tac>>
+      first_assum $ irule_at Any>>
+      fs[Once sensible_cases])
+  >- (Cases_on ‘t'’>>gvs[]
+      >- (disj1_tac>>
+          imp_res_tac strip_tau_FUNPOW>>gvs[sensible_FUNPOW_Tau]>>
+          first_assum $ irule_at (Pos hd)>>
+          irule_at (Pos hd) itree_wbisim_sym>>
+          irule_at Any (iffRL wbisim_FUNPOW_Tau)>>
+          simp[Once itree_wbisim_cases]>>
+          metis_tac[itree_wbisim_sym])>>
+      rw[]>>
+      imp_res_tac strip_tau_FUNPOW>>gvs[sensible_FUNPOW_Tau]>>
+      gvs[Once sensible_cases]>>
+      metis_tac[itree_wbisim_trans,itree_wbisim_sym])>>
+  Cases_on ‘t'’>>gvs[]>>
+  disj1_tac>>
+  first_assum $ irule_at Any>>
+  metis_tac[itree_wbisim_rules]
 QED
 
 Theorem h_prog_while_unfold:
@@ -1533,12 +1487,397 @@ Proof
   fs[FUNPOW_eq_elim,Tau_INJ]
 QED
 
-Theorem sens:
-  sensible event_filter (mrec_sem (h_prog (prog,s)):('a,'b)mtree)
+Theorem sensible_mtree:
+  sensible event_filter (mrec_sem (h_prog (prog,s)))
 Proof
+    irule sensible_strong_coind>>
+  qexists ‘{t | ∃prog. t ≈ mrec_sem (h_prog (prog,s))}’>>
+  simp[]>>rw[] >- (irule_at Any itree_wbisim_refl)>>
+
+  Cases_on ‘ht’>>gvs[mrec_sem_simps]
+  >- (disj1_tac>>pop_assum $ irule_at Any)>>
+
+  Cases_on ‘∃t. strip_tau (h_prog(prog,s)) t’>>fs[mrec_sem_simps]
+  >- (imp_res_tac strip_tau_FUNPOW>>
+      Cases_on ‘t’>>fs[mrec_sem_FUNPOW_Tau,mrec_sem_simps]>>
+      fs[wbisim_FUNPOW_Tau]
+      >- fs[Once itree_wbisim_cases]>>
+      reverse (Cases_on ‘a'’)>>fs[mrec_sem_simps]>>rw[]
+      >- (imp_res_tac h_prog_Vis_INR_ret>>
+          last_x_assum mp_tac>>
+          simp[Once itree_wbisim_cases]>>strip_tac>>
+          last_x_assum kall_tac>>gvs[mrec_sem_simps]>>
+          Cases_on ‘a'’>>fs[event_filter_def]
+          >- (disj2_tac>>
+              irule sensible_wbisim>>
+              first_assum $ irule_at Any>>
+              simp[sensible_rules])>>
+(**
+stuck here:
+need to use (FST a) and query_oracle to get this equality.
+
+    0.  h_prog (prog,s) = FUNPOW Tau n (Vis (INR a) Ret)
+    1.  ∀r. g r ≈ Ret r
+   ------------------------------------
+        ∃ev st. SND a (FFI_final f) = (SOME (FinalFFI ev),st)
+**)
+
+QED
+
+(** version 2, works fine except for the htree Vis-INL case **)
+ 
+CoInductive sensible2:
+[~ret:]
+  ∀r. sensible2 f st (Ret r)
+[~tau:]
+  ∀t. sensible2 f st t ⇒ sensible2 f st (Tau t:('a,'b) mtree)
+[~vis:]
+  ∀e k.
+        (if (∃x. FFI_final x = FST (f st (FST e)))
+          then (∃w. Ret w ≈ (k o SND e) (FST (f st (FST e))))
+          else (sensible2 f st ((k o SND e) (FST (f st (FST e))))))
+        ⇒ sensible2 f st (Vis e k)
+End
+
+(* strong_coind *)
+Theorem sensible2_strong_coind:
+  (∀ht. R ht ⇒
+        (∃r. ht = Ret r) ∨
+        (∃t. ht = Tau t ∧ (R t ∨ sensible2 f st t)) ∨
+        (∃e k.
+          ht = Vis e k ∧
+        (if ∃x. FST (f st (FST e)) = FFI_final x
+         then ∃w. Ret w ≈ (k o SND e) (FST (f st (FST e)))
+         else (λt. R t ∨ sensible2 f st t)
+              ((k o SND e) (FST (f st (FST e)))))))  ⇒
+  ∀ht. R ht ⇒ sensible2 f st ht
+Proof
+  rpt strip_tac>>
+  Q.SUBGOAL_THEN ‘R ht ∨ sensible2 f st ht’ mp_tac>- simp[]>>
+  pop_assum kall_tac>>
+  qid_spec_tac ‘ht’>>
+  ho_match_mp_tac sensible2_coind>>
+  rw[]>>res_tac>> gvs[]
+  >- (Cases_on ‘FST (f st (FST e))’>>gvs[]>> metis_tac[])>>
+  pop_assum (strip_assume_tac o ONCE_REWRITE_RULE[sensible2_cases])>>
+  gvs[]>>metis_tac[]
+QED
+
+Theorem sensible_spin:
+  sensible2 f st spin
+Proof
+  irule sensible2_coind>>
+  qexists ‘{Tau spin; spin}’>>rw[]>>
+  disj2_tac>>
+  disj1_tac>>
+  fs[Once spin]
+QED
+
+Theorem sensible2_FUNPOW_Tau:
+  sensible2 f st (FUNPOW Tau n t) ⇔ sensible2 f st t
+Proof
+  Induct_on ‘n’>>rw[EQ_IMP_THM]>>
+  fs[FUNPOW_SUC]
+  >- (fs[Once sensible2_cases]>>metis_tac[])>>
+  fs[sensible2_tau]
+QED
+
+Theorem sensible2_wbisim:
+  sensible2 f st t ∧ t' ≈ t ⇒ sensible2 f st t'
+Proof
+  qid_spec_tac ‘t’>>
+  qid_spec_tac ‘t'’>>
+  simp[GSYM PULL_EXISTS]>>
+  ho_match_mp_tac sensible2_strong_coind>>
+  rw[Once itree_wbisim_cases]
+  >- (disj1_tac>>
+      first_assum $ irule_at Any>>
+      fs[Once sensible2_cases])
+  >- (Cases_on ‘t'’>>gvs[]
+      >- (disj1_tac>>
+          imp_res_tac strip_tau_FUNPOW>>gvs[sensible2_FUNPOW_Tau]>>
+          first_assum $ irule_at (Pos hd)>>
+          irule_at (Pos hd) itree_wbisim_sym>>
+          irule_at Any (iffRL wbisim_FUNPOW_Tau)>>
+          simp[Once itree_wbisim_cases]>>
+          metis_tac[itree_wbisim_sym])>>
+      rw[]
+      >- (imp_res_tac strip_tau_FUNPOW>>gvs[sensible2_FUNPOW_Tau]>>
+          gvs[Once sensible2_cases]>>
+          metis_tac[itree_wbisim_trans,itree_wbisim_sym])>>
+      imp_res_tac strip_tau_FUNPOW>>gvs[sensible2_FUNPOW_Tau]>>
+      gvs[Once sensible2_cases]>>
+      metis_tac[itree_wbisim_trans,itree_wbisim_sym])>>
+  Cases_on ‘t'’>>gvs[]>>
+  disj1_tac>>
+  first_assum $ irule_at Any>>
+  metis_tac[itree_wbisim_rules]
+QED
+
+Theorem mrec_sem_bind_INR:
+  (mrec_sem t) >>= mrec_sem o g  = Vis a k ⇒
+  (∃g'. t = Vis (INR a) g' ∧ k  = Tau o mrec_sem o (λx. g' x >>= g)) ∨
+  (∃x' g''. t = Ret x' ∧ g x' = Vis (INR a) g'' ∧ k = Tau o mrec_sem o g'')
+Proof
+  strip_tac>>
+  Cases_on ‘t’>>gvs[itree_bind_thm,mrec_sem_simps]
+  >- (Cases_on ‘g x’>>gvs[mrec_sem_simps]>>
+      Cases_on ‘a'’>>gvs[mrec_sem_simps])>>
+  Cases_on ‘a'’>>fs[mrec_sem_simps]>>
+  fs[GSYM msem_lift_monad_law]>>
+  fs[FUN_EQ_THM]
+QED
+
+Theorem sens:
+  sensible2 query_oracle s.ffi (mrec_sem (h_prog (prog,s)):('a,'b)mtree)
+Proof
+  irule sensible2_strong_coind>>
+  qexists ‘{t | ∃prog. t ≈ mrec_sem (h_prog (prog,s))}’>>
+  simp[]>>rw[] >- (irule_at Any itree_wbisim_refl)>>
+
+  Cases_on ‘ht’>>gvs[mrec_sem_simps]
+  >- (disj1_tac>>pop_assum $ irule_at Any)>>
+
+  Cases_on ‘∃t. strip_tau (h_prog(prog,s)) t’>>fs[mrec_sem_simps]
+  >- (imp_res_tac strip_tau_FUNPOW>>
+      Cases_on ‘t’>>fs[mrec_sem_FUNPOW_Tau,mrec_sem_simps]>>
+      fs[wbisim_FUNPOW_Tau]
+      >- fs[Once itree_wbisim_cases]>>
+      reverse (Cases_on ‘a'’)>>fs[mrec_sem_simps]
+      >- (imp_res_tac h_prog_Vis_INR_ret>>
+          last_x_assum mp_tac>>
+          simp[Once itree_wbisim_cases]>>strip_tac>>
+          last_x_assum kall_tac>>gvs[mrec_sem_simps]>>
+          CASE_TAC>-
+           metis_tac[itree_wbisim_sym]>>
+          disj2_tac>>
+          irule sensible2_wbisim>>
+          first_assum $ irule_at Any>>
+          simp[sensible2_rules])>>
+      pop_assum kall_tac>>
+      pop_assum kall_tac>>
+
+      last_x_assum mp_tac>>
+      simp[Once itree_wbisim_cases]>>
+      strip_tac>>
+      dxrule strip_tau_FUNPOW>>strip_tac>>
+      fs[msem_lift_monad_law]>>
+
+      pop_assum mp_tac>>
+      pop_assum mp_tac>>
+      map_every qid_spec_tac [‘a’,‘g’,‘x’,‘g'’,‘k'’,‘prog’,‘s’,‘n’]>>
+      completeInduct_on ‘n’>>gvs[]>>
+      rpt strip_tac>>
+      Cases_on ‘n’>>fs[FUNPOW_SUC]>>
+      (* 0 *)
+      
+      imp_res_tac mrec_sem_bind_INR>>
+      Cases_on ‘x’>>fs[]>>
+      ‘h_prog (q,r) = FUNPOW Tau 0 (Vis (INR a) g'')’ by simp[FUNPOW]>>
+      dxrule h_prog_Vis_INR_ret>>strip_tac>>gvs[mrec_sem_simps]>>
+
+      Cases_on ‘h_prog x’>>fs[itree_bind_thm,mrec_sem_simps]>>
+
+(* Ret *)
+      Cases_on ‘g' x'’>>gvs[mrec_sem_simps]>>
+      Cases_on ‘a'’>>gvs[mrec_sem_simps]>>
+      Cases_on ‘x’>>gvs[]>>
+      
+               cheat
+      
+      (*
+    0.  ∀r. g r ≈ mrec_sem (g'' r)
+    1.  h_prog x = Ret x'
+    2.  g' x' = Vis (INR a) g''
+      *)
+
+
+(* Vis *)
+      Cases_on ‘a'’>>fs[mrec_sem_simps]>>gvs[GSYM msem_lift_monad_law]>>
+      ‘g'' = Ret’
+        by (irule h_prog_Vis_INR_ret>>
+            simp[Once SWAP_EXISTS_THM]>>
+            qexists ‘0’>>simp[FUNPOW]>>
+            Cases_on ‘x’>>metis_tac[])>>
+      gvs[mrec_sem_simps]>>
+      (*
+    0.  ∀r. g r ≈ mrec_sem (g' r)
+    1.  h_prog x = Vis (INR a) Ret
+      *)
+
+(* SUC *)
+      last_x_assum $ qspec_then ‘n'’ assume_tac>>
+      gvs[]>>
+
+      Cases_on ‘h_prog x’>>gvs[itree_bind_thm,mrec_sem_simps]>>
+      
+      (* Ret *)
+         
+      Cases_on ‘g' x'’>>gvs[mrec_sem_simps]>>
+      last_x_assum $ qspec_then ‘n'’ assume_tac>>gvs[]
+      Cases_on ‘a'’>>gvs[mrec_sem_simps]>>
+
+
+      cheat
+     )>>
+  imp_res_tac strip_tau_spin>>gvs[mrec_sem_spin]>>
+  imp_res_tac spin_wbisim>>
+  first_x_assum mp_tac>>simp[Once spin]
+QED
+
+(****)
+
+CoInductive sensible3:
+[~ret:]
+  ∀r. sensible3 f st (Ret r)
+[~tau:]
+  ∀t. sensible3 f st t ⇒ sensible3 f st (Tau t:('a,'b) mtree)
+[~vis:]
+  ∀e k.
+(*        ((if (∃x. FFI_final x = FST (f st (FST e)))
+          then (∃w. Ret w ≈ (k o SND e) (FST (f st (FST e))))
+          else (sensible3 f st ((k o SND e) (FST (f st (FST e))))))
+         ∨ (∃g. ∀r. k r ≈ mrec_sem (g r)))*)
+           ((∀x. ∃y. (k o SND e) (FFI_final x) ≈ Ret y) ∨
+            ())
+        ⇒ sensible3 f st (Vis e k)
+End
+
+(* strong_coind *)
+Theorem sensible3_strong_coind:
+  (∀ht. R ht ⇒
+        (∃r. ht = Ret r) ∨
+        (∃t. ht = Tau t ∧ (R t ∨ sensible3 f st t)) ∨
+        (∃e k.
+          ht = Vis e k ∧
+           (∀x. ∃y. (k o SND e) (FFI_final x) ≈ Ret y))) ⇒
+  ∀ht. R ht ⇒ sensible3 f st ht
+Proof
+  rpt strip_tac>>
+  Q.SUBGOAL_THEN ‘R ht ∨ sensible3 f st ht’ mp_tac>- simp[]>>
+  pop_assum kall_tac>>
+  qid_spec_tac ‘ht’>>
+  ho_match_mp_tac sensible3_coind>>
+  rw[]>>res_tac>>gvs[]>>
+  pop_assum (strip_assume_tac o ONCE_REWRITE_RULE[sensible3_cases])>>
+  gvs[]>>metis_tac[]
+QED
+
+Theorem sensible_spin:
+  sensible3 f st spin
+Proof
+  irule sensible3_coind>>
+  qexists ‘{Tau spin; spin}’>>rw[]>>
+  disj2_tac>>
+  disj1_tac>>
+  fs[Once spin]
+QED
+
+Theorem sensible3_FUNPOW_Tau:
+  sensible3 f st (FUNPOW Tau n t) ⇔ sensible3 f st t
+Proof
+  Induct_on ‘n’>>rw[EQ_IMP_THM]>>
+  fs[FUNPOW_SUC]
+  >- (fs[Once sensible3_cases]>>metis_tac[])>>
+  fs[sensible3_tau]
+QED
+
+Theorem sensible3_wbisim:
+  sensible3 f st t ∧ t' ≈ t ⇒ sensible3 f st t'
+Proof
+  qid_spec_tac ‘t’>>
+  qid_spec_tac ‘t'’>>
+  simp[GSYM PULL_EXISTS]>>
+  ho_match_mp_tac sensible3_strong_coind>>
+  rw[Once itree_wbisim_cases]
+  >- (disj1_tac>>
+      first_assum $ irule_at Any>>
+      fs[Once sensible3_cases])
+  >- (Cases_on ‘t'’>>gvs[]
+      >- (disj1_tac>>
+          imp_res_tac strip_tau_FUNPOW>>gvs[sensible3_FUNPOW_Tau]>>
+          first_assum $ irule_at (Pos hd)>>
+          irule_at (Pos hd) itree_wbisim_sym>>
+          irule_at Any (iffRL wbisim_FUNPOW_Tau)>>
+          simp[Once itree_wbisim_cases]>>
+          metis_tac[itree_wbisim_sym])>>
+      rw[]
+      >- (imp_res_tac strip_tau_FUNPOW>>gvs[sensible3_FUNPOW_Tau]>>
+          gvs[Once sensible3_cases]>>
+          metis_tac[itree_wbisim_trans,itree_wbisim_sym])>>
+      imp_res_tac strip_tau_FUNPOW>>gvs[sensible3_FUNPOW_Tau]>>
+      gvs[Once sensible3_cases]>>
+      metis_tac[itree_wbisim_trans,itree_wbisim_sym])>>
+  Cases_on ‘t'’>>gvs[]>>
+  disj1_tac>>
+  first_assum $ irule_at Any>>
+  metis_tac[itree_wbisim_rules]
+QED
+
+Theorem sens:
+  sensible3 query_oracle s.ffi (mrec_sem (h_prog (prog,s)):('a,'b)mtree)
+Proof
+  irule sensible3_strong_coind>>
+  qexists ‘{t | ∃prog. t ≈ mrec_sem (h_prog (prog,s))}’>>
+  simp[]>>rw[] >- (irule_at Any itree_wbisim_refl)>>
+
+  Cases_on ‘ht’>>gvs[mrec_sem_simps]
+  >- (disj1_tac>>pop_assum $ irule_at Any)>>
+
+ Cases_on ‘∃t. strip_tau (h_prog(prog,s)) t’>>fs[mrec_sem_simps]
+  >- (imp_res_tac strip_tau_FUNPOW>>
+      Cases_on ‘t’>>fs[mrec_sem_FUNPOW_Tau,mrec_sem_simps]>>
+      fs[wbisim_FUNPOW_Tau]
+      >- fs[Once itree_wbisim_cases]>>
+      reverse (Cases_on ‘a'’)>>fs[mrec_sem_simps]
+      >- (imp_res_tac h_prog_Vis_INR_ret>>
+          last_x_assum mp_tac>>
+          simp[Once itree_wbisim_cases]>>strip_tac>>
+          last_x_assum kall_tac>>gvs[mrec_sem_simps]>>
+          metis_tac[])>>
+(*      fs[msem_lift_monad_law]>>*)
+      dxrule itree_wbisim_sym>>strip_tac>>
+      last_x_assum kall_tac>>
+      dxrule itree_wbisim_Vis_FUNPOW>>strip_tac>>
+      last_x_assum kall_tac>>
+      pop_assum mp_tac>>
+      pop_assum mp_tac>>
+      map_every qid_spec_tac [‘a’,‘k’,‘x’,‘g'’,‘prog’,‘s’,‘n'’]>>
+      completeInduct_on ‘n'’>>gvs[]>>
+      rpt strip_tac>>
+
+
+
+
+      Cases_on ‘n'’>>fs[FUNPOW_SUC]>>
+      (* 0 *)
+      Cases_on ‘h_prog x’>>fs[itree_bind_thm,mrec_sem_simps]
+      >- (Cases_on ‘g' x''’>>fs[mrec_sem_simps]>>
+          Cases_on ‘a'’>>gvs[mrec_sem_simps]>>
+          last_assum $ qspec_then ‘SND a (FFI_final x')’ assume_tac>>
+          cheat)>>
+      Cases_on ‘a'’>>gvs[mrec_sem_simps]>>
+      Cases_on ‘x’>>
+      ‘h_prog (q,r) = FUNPOW Tau 0 (Vis (INR a) g'')’ by simp[]>>
+      imp_res_tac h_prog_Vis_INR_ret>>gvs[mrec_sem_simps]>>
+      last_assum $ qspec_then ‘SND a (FFI_final x')’ assume_tac>>
+      
+         
+      
+                             
+
+
+(****)
+
+
+(* sens1 *)
   irule sensible_strong_coind>>
   qexists ‘{t | ∃prog s. t ≈ mrec_sem (h_prog (prog,s))}’>>
   simp[]>>rw[] >- (irule_at Any itree_wbisim_refl)>>
+
+
+
+
   Cases_on ‘ht’>>gvs[mrec_sem_simps]
   >- (disj1_tac>>pop_assum $ irule_at Any)>>
   strip_tac>>
@@ -1743,33 +2082,15 @@ fs[ELIM_UNCURRY,itree_bind_thm]>>
   imp_res_tac spin_wbisim>>fs[Once spin]
 QED
 
-Theorem temp:
-  mrec_sem (h_prog (prog,s)) ≈ Vis e k ∧
-  (∃ev st. SND e a = (SOME (FinalFFI ev),st)) ⇒
-              k (SOME (FinalFFI ev),st) ≈ Ret (SOME (FinalFFI ev),st)
+Theorem stree_trace_Vis:
+  (∀x. ∃y. k (FFI_final x) ≈ Ret y) ⇒
+  stree_trace query_oracle event_filter st (Vis e k) =
+  let (a,rbytes,st') = query_oracle st e in
+    if event_filter a then
+      make_io_event e rbytes:::stree_trace query_oracle event_filter st' (k a)
+    else
+      stree_trace query_oracle event_filter st' (k a)
 Proof
-  MAP_EVERY qid_spec_tac [‘e’,‘k’,‘a’,‘s’,‘prog’]>>
-  Induct>>rw[]>>
-  TRY (fs[h_prog_def,
-          h_prog_rule_assign_def,
-          h_prog_rule_store_def,
-          h_prog_rule_store_byte_def,
-          mrec_sem_simps]>>
-       rpt (FULL_CASE_TAC>>
-            fs[mrec_sem_simps])>>
-       fs[Once itree_wbisim_cases]>>NO_TAC)>>
-
-  (* While *)
-  fs[Once mrec_sem_while_unfold]>>
-  fs[panPropsTheory.eval_upd_clock_eq]>>
-  rpt (FULL_CASE_TAC>>fs[mrec_sem_simps])>>
-  TRY (fs[Once itree_wbisim_cases]>>NO_TAC)>>
-  Cases_on ‘mrec_sem (h_prog (prog,s))’>>
-  fs[itree_bind_thm]
-  >- (pairarg_tac>>fs[]>>
-      rpt (FULL_CASE_TAC>>fs[itree_bind_thm])>>gvs[]>>
-      TRY (fs[Once itree_wbisim_cases]>>NO_TAC)>>cheat)
-  >-
 QED
 
 Theorem stree_trace_Vis:
@@ -1789,11 +2110,49 @@ Proof
   rw[ELIM_UNCURRY]>>
   Cases_on ‘e’>>fs[query_oracle_def]>>
   FULL_CASE_TAC>>fs[]>>
-  FULL_CASE_TAC>>fs[]>>
-  gvs[]>>
+  FULL_CASE_TAC>>gvs[]>>
+ 
+(*
+e = FFI_call nm cf bytes ∧ call_FFI st nm cf bytes = FFI_final xxxx ⇒
+Vis e k = k (call_FFI st nm cf bytes)
+
+FST e = FFI_call nm cf bytes ∧ call_FFI st nm cf bytes = FFI_final xxxx ⇒
+Vis (FST e)  (to_stree o k o SND e) = (to_stree o k o SND e) (FST (oracle st e))
+to_stree (Vis e k) = (to_stree o k o SND e) (FST (oracle st e))
+Vis e k = (k o SND e) (FST (oracle st e))
+*)
   simp[Once LUNFOLD] >>
-  fs[query_oracle_def,event_filter_def]>>
-(*  
+  simp[SimpR“$=”,Once LUNFOLD] >>
+  CASE_TAC>>gvs[query_oracle_def,event_filter_def]>>
+  CASE_TAC>>fs[]>>
+  qmatch_asmsub_abbrev_tac ‘FFI_final X’>>
+
+  last_assum $ qspec_then ‘X’ assume_tac>>fs[]>>
+  
+
+                                            
+  >- (simp[Once LUNFOLD] >>
+
+                   (* Tau *) cheat>>
+  CASE_TAC>>gvs[]>>
+  Cases_on ‘a’>>fs[event_filter_def,query_oracle_def]>>
+  rpt (FULL_CASE_TAC>>gvs[event_filter_def])>>
+
+(*
+ 
+    0.  call_FFI st f' l l0 = FFI_final (Final_event f'³' l' l0' f0)
+    1.  k (FFI_final (Final_event f'³' l' l0' f0)) =
+        Vis (FFI_call f l'' l0'') g
+    2.  call_FFI st f l'' l0'' = FFI_return f'' l'³'
+  
+  *)
+
+
+(*
+(k o SND e) (FST (oracle st e) = Ret x?
+k (FFI_final (Final_event ....)) = Ret x
+
+
   rw[stree_trace_def] >>
   rw[Once LUNFOLD]>>
   rw[ELIM_UNCURRY]>>
