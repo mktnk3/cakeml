@@ -88,7 +88,9 @@ Definition ltree_lift_def:
         Ret x => Ret (INR x)
        | Tau u => Ret (INL (u,st))
        | Vis (e,k) g => let (a,rbytes,st') = (f st e) in
-                            Ret (INL ((g o k) a,st')))
+                          case a of
+                            | FFI_final x => Ret (INR (k a))
+                            | _ => Ret (INL ((g o k) a,st')))
   (mt,st)
 End
 
@@ -100,16 +102,56 @@ Definition ltree_diverges_def:
   ltree_diverges lt ⇔ ¬(ltree_converges lt)
 End
 
+Theorem prop:
+  mrec_sem (h_prog (prog,s)) = Vis e g ∧
+  (∃x. FST (query_oracle s.ffi (FST e)) = FFI_final x)
+  ⇒ g = Tau o mrec_sem o Ret
+Proof
+  map_every qid_spec_tac [‘e’,‘g’,‘s’,‘prog’]>>
+  Induct>>rw[]>>
+TRY (
+  fs[h_prog_def,
+     h_prog_rule_dec_def,
+     h_prog_rule_return_def,
+     h_prog_rule_raise_def,
+     h_prog_rule_ext_call_def,
+     h_prog_rule_call_def,
+     h_prog_rule_while_def,
+     h_prog_rule_cond_def,
+     h_prog_rule_sh_mem_def,
+     h_prog_rule_sh_mem_def,
+     h_prog_rule_seq_def,
+     h_prog_rule_store_def,
+     h_prog_rule_store_byte_def,
+     h_prog_rule_assign_def,
+     mrec_sem_simps]>>
+  rpt strip_tac>>
+  rpt (FULL_CASE_TAC>>
+  gvs[panPropsTheory.eval_upd_clock_eq,AllCaseEqs(),
+      empty_locals_defs,mrec_sem_simps])>>NO_TAC)
+  >- (fs[h_prog_def,h_prog_rule_while_def]>>
+      gvs[Once itree_iter_thm,
+          panPropsTheory.eval_upd_clock_eq]>>
+      rpt (FULL_CASE_TAC>>fs[mrec_sem_simps]))>>
+  Cases_on ‘m’>>
+  fs[h_prog_rule_sh_mem_op_def,h_prog_def,h_prog_rule_sh_mem_def]>>
+  fs[h_prog_rule_sh_mem_load_def,h_prog_rule_sh_mem_store_def]>>
+  rpt (FULL_CASE_TAC>>fs[mrec_sem_simps])
+QED
+
 Theorem ltree_lift_cases:
   (ltree_lift f st (Ret x) = Ret x) ∧
   (ltree_lift f st (Tau u) = Tau (ltree_lift f st u)) ∧
   (ltree_lift f st (Vis (e,k) g) = let (a,rbytes,st') = (f st e) in
-                                   Tau (ltree_lift f st' ((g o k) a)))
+                                     case a of
+                                     | FFI_final _ => Ret (k a)
+                                     | _ =>
+                                         Tau (ltree_lift f st' ((g o k) a)))
 Proof
   rpt strip_tac >>
   rw [ltree_lift_def] >>>
      LASTGOAL (Cases_on ‘f st e’ >> Cases_on ‘r’) >>>
-     ALLGOALS (rw [Once itree_iter_thm])
+     ALLGOALS (rw [Once itree_iter_thm]>>CASE_TAC>>fs[])
 QED
 
 (** FUNPOW **)
@@ -370,7 +412,10 @@ QED
 
 Theorem ltree_lift_Vis_alt:
   ltree_lift f st (Vis ek g) =
-  (let (a,rbytes,st') = f st $ FST ek in Tau (ltree_lift f st' ((g ∘ (SND ek)) a)))
+  (let (a,rbytes,st') = f st $ FST ek in
+     case a of
+     | FFI_final _ => Ret (SND ek a)
+     | _ => Tau (ltree_lift f st' ((g ∘ (SND ek)) a)))
 Proof
   Cases_on ‘ek’ >> rw[ltree_lift_cases]
 QED
@@ -378,18 +423,22 @@ QED
 Theorem strip_tau_ltree_lift_Vis:
   ∀x e k. strip_tau x (Vis e k) ⇒
         ∃t n. ltree_lift f st x =
-              Tau $ ltree_lift f (SND $ SND $ f st $ FST e)
-                  (FUNPOW Tau n $ k $ SND e $ FST $ f st $ FST e)
+              let (a,rbytes,st') = (f st $ FST e) in
+                case a of
+                | FFI_final _ => FUNPOW Tau n $ Ret (SND e a)
+                | _ =>
+                    Tau $ ltree_lift f (SND $ SND $ f st $ FST e)
+                        (FUNPOW Tau n $ k $ SND e $ FST $ f st $ FST e)
 Proof
-  Induct_on ‘strip_tau’ >>
+  Induct_on ‘strip_tau’ >>rw[]>>
+  pairarg_tac>>fs[]>>
+  CASE_TAC>>fs[]>>
   rw[ltree_lift_cases,ltree_lift_Vis_alt] >>
-  rw[ltree_lift_cases,ltree_lift_Vis_alt]
-  >- (qrefine ‘SUC _’ >>
-      rw[ltree_lift_cases,FUNPOW_SUC] >>
-      metis_tac[]
-     ) >>
-  qexists ‘0’ >>
-  rw[ELIM_UNCURRY]
+  rw[ltree_lift_cases,ltree_lift_Vis_alt] >>
+  TRY (qexists ‘0’ >> rw[ELIM_UNCURRY]>>NO_TAC)>>
+  qrefine ‘SUC _’ >>
+  rw[ltree_lift_cases,FUNPOW_SUC] >>
+  metis_tac[]
 QED
 
 Theorem ltree_lift_resp_wbisim:
@@ -406,10 +455,16 @@ Proof
   >- (gvs[ltree_lift_cases] >> metis_tac[])
   >- (rpt $ dxrule_then (qspecl_then [‘st’,‘f’] strip_assume_tac) strip_tau_ltree_lift_Vis >>
       gvs[] >>
-      rpt $ disj1_tac >>
-      rpt $ irule_at (Pos hd) EQ_REFL >>
-      match_mp_tac FUNPOW_Tau_wbisim_intro >>
-      simp[]) >>
+      pairarg_tac>>fs[]>>
+      CASE_TAC>>fs[]
+      >- (rpt $ disj1_tac >>
+          rpt $ irule_at (Pos hd) EQ_REFL >>
+          match_mp_tac FUNPOW_Tau_wbisim_intro >>
+          simp[]) >>
+       disj2_tac>>
+       disj2_tac>>
+      disj1_tac>>
+      rpt $ irule_at Any strip_tau_FUNPOW_cancel>>simp[])>>
   rpt $ dxrule_then (qspecl_then [‘st’,‘f’] strip_assume_tac) strip_tau_ltree_lift_Ret >>
   gvs[ltree_lift_cases] >>
   metis_tac[]
@@ -542,8 +597,10 @@ Definition ltree_lift_state_def:
         | Ret _ => (t,st)
         | Tau t => (t,st)
         | Vis (e,k) g =>
-          let (a,rbytes,st') = f st e in
-            ((g ∘ k) a,st')
+            let (a,rbytes,st') = f st e in
+              case a of
+                FFI_return _ _ => ((g ∘ k) a,st')
+              | FFI_final _ => (Ret (k a), st)
     )
     (t,st)
 End
@@ -552,30 +609,46 @@ Theorem ltree_lift_state_simps:
   ltree_lift_state f st (Ret x) = st ∧
   ltree_lift_state f st (Tau t) = ltree_lift_state f st t ∧
   ltree_lift_state f st (Vis ek g) =
-   let (a,rbytes,st') = f st (FST ek) in
-     ltree_lift_state f st' ((g ∘ (SND ek)) a)
+  let (a,rbytes,st') = f st (FST ek) in
+    case a of
+      FFI_return _ _ => ltree_lift_state f st' ((g ∘ (SND ek)) a)
+    | FFI_final _ => st
 Proof
   rpt conj_tac >>
   rw[ltree_lift_state_def, Once whileTheory.WHILE] >>
   rw[ELIM_UNCURRY] >>
-  PURE_TOP_CASE_TAC >> rw[]
+  PURE_TOP_CASE_TAC >> rw[]>>
+  PURE_TOP_CASE_TAC >> rw[]>>
+  rw[Once whileTheory.WHILE]
 QED
 
-Theorem ltree_lift_monad_law:
-  ltree_lift f st (mt >>= k) =
-  (ltree_lift f st mt) >>= (ltree_lift f (ltree_lift_state f st mt)) o k
+Theorem ltree_mrec_monad_law:
+  ltree_lift f st (mrec_sem (mt >>= k)) =
+  (ltree_lift f st (mrec_sem mt))
+  >>= (ltree_lift f (ltree_lift_state f st (mrec_sem mt))) o (mrec_sem o k)
 Proof
   rw[Once itree_strong_bisimulation] >>
-  qexists ‘CURRY {(ltree_lift f st (mt >>= k),
-                  (ltree_lift f st mt) >>= (ltree_lift f (ltree_lift_state f st mt)) o k)
+  qexists ‘CURRY {(ltree_lift f st (mrec_sem (mt >>= k)),
+                  (ltree_lift f st (mrec_sem mt)) >>= (ltree_lift f (ltree_lift_state f st (mrec_sem mt))) o (mrec_sem o k))
                   | T
                  }’ >>
   conj_tac >- (rw[ELIM_UNCURRY,EXISTS_PROD] >> metis_tac[]) >>
   rw[ELIM_UNCURRY,EXISTS_PROD] >>
-  rename [‘ltree_lift f st t >>= _’]
+  rename [‘ltree_lift f st (mrec_sem t) >>= _’]
   >~ [‘Ret’]
-  >- (Cases_on ‘t’ >> gvs[ltree_lift_cases,ltree_lift_state_simps,ltree_lift_Vis_alt,
-                          ELIM_UNCURRY])
+  >- (Cases_on ‘t’ >>
+      gvs[ltree_lift_cases,ltree_lift_state_simps,ltree_lift_Vis_alt,
+          msem_lift_monad_law,mrec_sem_simps,ELIM_UNCURRY]>>
+
+      Cases_on ‘a’>>
+      gvs[ltree_lift_Vis_alt,mrec_sem_simps]>>
+      gvs[ltree_lift_state_simps,ltree_lift_cases]
+
+         pairarg_tac>>fs[]>>
+         CASE_TAC>>fs[]>>
+      gvs[ltree_lift_state_simps,ltree_lift_cases]
+
+)
   >~ [‘Tau’]
   >- (Cases_on ‘t’ >>
       gvs[ltree_lift_cases,ltree_lift_state_simps,ltree_lift_Vis_alt]
