@@ -5389,7 +5389,7 @@ Proof
   gvs[mrec_sem_simps,to_stree_simps,stree_trace_simps,stree_trace_Vis]>>
 QED
 
-Theorem bounded_trace_eq2:
+Theorem bounded_trace_eq:
   (∀k'. s.clock < k' ⇒ (SND(evaluate(prog:'a prog,s))).ffi.io_events
                        = (SND(evaluate(prog,s with clock:=k'))).ffi.io_events) ∧
   (∀p. ¬(ltree_lift query_oracle s.ffi (mrec_sem (h_prog (prog,unclock s))) ≈ Ret p)) ∧
