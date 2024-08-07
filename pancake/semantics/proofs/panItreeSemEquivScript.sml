@@ -5576,7 +5576,7 @@ Proof
   imp_res_tac strip_tau_spin
 QED
 
-Theorem clock_0_imp_LNIL':
+Theorem clock_0_imp_LNIL:
   (∀k'. s.ffi.io_events
         = (SND(evaluate(prog,s with clock:=k'))).ffi.io_events) ∧
   (∀p. ¬(ltree_lift query_oracle s.ffi (mrec_sem (h_prog (prog,unclock s))) ≈ Ret p)) ∧
@@ -5590,7 +5590,6 @@ Proof
   qexists ‘{lnil}’>>
   simp[]>>rw[]>>
   TRY (fs[Once (GSYM lnil)]>>NO_TAC)>>
- (***)
   simp[lnil_def]>>
   simp[Once LUNFOLD_BISIMULATION]>>
   qexists ‘CURRY {((s.ffi,to_stree(mrec_sem(h_prog(prog,unclock s)))),())
@@ -5614,160 +5613,6 @@ Proof
     first_assum $ irule_at Any>>
     simp[to_stree_spin]
 QED           
-
-
-
-
-  qexists ‘CURRY {(FUNPOW (λ(fs',t).
-                     case t of
-                       Ret r => (fs',t)
-                     | Tau u => (fs',u)
-                     | Vis e k =>
-                       (λ(a,rbytes,fs''). (fs'',k a)) (query_oracle fs' e)) n (s.ffi,to_stree(mrec_sem(h_prog(prog,unclock s)))),())|n|T}’>>
-  rw[]>>>- (qexists ‘0’>>fs[])>>
-  Cases_on ‘n’>>fs[]
-  >- (Cases_on ‘mrec_sem(h_prog(prog,unclock s))’>>
-      fs[to_stree_simps,ltree_lift_cases]
-      >- fs[Once itree_wbisim_cases]
-      >- (qexists ‘1’>>fs[])>>
-      qpat_x_assum ‘∀p.¬(_ ≈ _ )’ mp_tac>>
-      first_assum (fn h => rewrite_tac [GSYM h])>>
-      ‘s.ffi = (unclock s).ffi’ by simp[]>>
-      pop_assum (fn h => rewrite_tac [h])>>
-      strip_tac>>drule_all nonret_FFI_return>>strip_tac>>
-      drule_then drule bounded_0_FFI_final>>strip_tac>>
-      gvs[])>>
-  qexists ‘FUNPOW
-               (λ(fs',t).
-                    case t of
-                      Ret r => (fs',t)
-                    | Tau u => (fs',u)
-                    | Vis e k =>
-                      (λ(a,rbytes,fs''). (fs'',k a)) (query_oracle fs' e))
-               n' (s.ffi,to_stree (mrec_sem (h_prog (prog,unclock s))))’>>
-  reverse conj_tac
-  >- metis_tac[]>>
-  simp[FUNPOW_SUC]>>
-         
-  
-
-     
-
-
-Theorem clock_0_imp_LNIL:
-  (∀k'. s.ffi.io_events
-        = (SND(evaluate(prog,s with clock:=k'))).ffi.io_events) ∧
-  (∀p. ¬(ltree_lift query_oracle s.ffi (mrec_sem (h_prog (prog,unclock s))) ≈ Ret p)) ∧
-  s.clock = 0 ∧ good_dimindex (:'a) ⇒
-  stree_trace query_oracle event_filter s.ffi (to_stree (mrec_sem (h_prog (prog,unclock (s:('a,'b) state))))) = [||]
-Proof
-  simp[stree_trace_def]>>
-  simp[LFLATTEN_EQ_NIL]>>
-  strip_tac>>
-  irule every_coind>>
-  qexists ‘{lnil}’>>
-  simp[]>>rw[]>>
-  TRY (fs[Once (GSYM lnil)]>>NO_TAC)>>
- (***)
-  Cases_on ‘∃t. strip_tau (mrec_sem (h_prog (prog,unclock s))) t’>>fs[]
-  >- (imp_res_tac strip_tau_FUNPOW>>fs[]>>
-      Cases_on ‘t’>>gvs[]
-      >- (fs[ltree_lift_cases,wbisim_FUNPOW_Tau,
-             ltree_lift_FUNPOW_Tau]>>
-          fs[Once itree_wbisim_cases]>>NO_TAC)>>
-
-(*
-      Cases_on ‘a’>>fs[]>>rename1 ‘(q,r)’>>
-      fs[ltree_lift_FUNPOW_Tau,ltree_lift_Vis_alt,wbisim_FUNPOW_Tau]>>
-      pairarg_tac>>fs[]>>
-      Cases_on ‘q’>>fs[query_oracle_def]>>
-      FULL_CASE_TAC>>gvs[]>>
-      Cases_on ‘g (SND a a')’>>fs[ltree_lift_cases]>>
-      TRY (fs[Once itree_wbisim_cases]>>NO_TAC)>>
-
-      imp_res_tac mrec_sem_FUNPOW_Vis_strip_tau>>
-      ‘∀w. ¬(ltree_lift query_oracle s'.ffi (mrec_sem (h_prog (p,s')))≈Ret w)’
-        by (gvs[ltree_lift_Vis_alt]>>
-            CCONTR_TAC>>fs[]>>
-
-*)
-
-)
-(***)
-      drule bounded_0_FFI_final_w>>
-      rpt (disch_then $ drule_at Any)>>
-      disch_then $ qspecl_then [‘g’,‘a’] mp_tac>>
-      impl_tac >-
-       (fs[wbisim_FUNPOW_Tau]>>
-        irule itree_wbisim_refl)>>
-      strip_tac>>
-      simp[to_stree_FUNPOW_Tau]>>
-      simp[unfold_Tau]>>
-      irule lnil_LUNFOLD_n>>
-(***)
-      simp[Once LUNFOLD,to_stree_simps]>>
-      pairarg_tac>>fs[]>>
-      IF_CASES_TAC>>fs[]
-      >- (
-       
-      drule bounded_0_FFI_final>>gvs[]>>strip_tac>>
-
-      pop_assum $ assume_tac o GSYM>>fs[]>>
-      drule_at Any nonret_FFI_return>>
-      strip_tac>>gvs[ltree_lift_Vis_alt]>>
-      pairarg_tac>>fs[]>>
-
-)>>
-(** here **)
-      rpt (pop_assum mp_tac)>>
-      map_every qid_spec_tac [‘a’,‘g’,‘s’,‘prog’,‘n’]>>
-      completeInduct_on ‘n’>>rw[]>>
-      Cases_on ‘n’>>rw[]>>fs[]
-      >- (drule_at Any nonret_FFI_return>>gvs[]>>strip_tac>>
-          drule bounded_0_FFI_final>>gvs[]>>strip_tac)>>
-      simp[Once LUNFOLD]>>simp[FUNPOW_SUC,to_stree_simps]>>
-      simp[Once (GSYM lnil)]>>
-(**)
-  fs[FUNPOW_SUC,ltree_lift_cases]>>
-  Cases_on ‘h_prog(prog,unclock s)’>>fs[mrec_sem_simps]>>gvs[]
-  >- fs[h_prog_not_Tau]>>
-  Cases_on ‘a'’>>fs[mrec_sem_simps]>>
-  qhdtm_x_assum ‘mrec_sem’ $ assume_tac o GSYM>>fs[]>>
-  fs[msem_lift_monad_law,ltree_lift_monad_law]>>
-  Cases_on ‘∃t. strip_tau (h_prog x) t’>>fs[]
-  >- (drule strip_tau_FUNPOW>>strip_tac>>
-      fs[mrec_sem_FUNPOW_Tau,ltree_lift_FUNPOW_Tau,FUNPOW_Tau_bind]>>
-      Cases_on ‘t’>>fs[mrec_sem_simps,ltree_lift_cases,ltree_lift_Vis_alt]
-      >- (‘mrec_sem (g' x') = FUNPOW Tau (n'-n) (Vis a g)’ by cheat>>
-          gvs[ltree_lift_FUNPOW_Tau,ltree_lift_state_simps]>>
-      
-        
-  fs[ltree_lift_FUNPOW_Tau,wbisim_FUNPOW_Tau]>>
-  
-  
-  
-
-
-
-
-      imp_res_tac mrec_sem_FUNPOW_Vis_less>>
-      fs[]>>
-      qpat_x_assum ‘_ = s.ffi’ $ assume_tac o GSYM>>simp[]>>
-      ‘s'.ffi = (reclock s').ffi’ by simp[]>>
-      pop_assum (fn h => rewrite_tac[h])>>
-      last_x_assum irule>>gvs[strip_tau_FUNPOW_cancel]>>
-      conj_tac >- fs[FUNPOW_SUC,ltree_lift_cases]>>
-
-
-      
-               
-      cheat)>>
-  imp_res_tac strip_tau_spin>>gvs[]>>
-  simp[lnil_def,to_stree_spin]>>
-  simp[Once LUNFOLD_BISIMULATION]>>
-  qexists ‘CURRY {((s.ffi,spin),())}’>>rw[]>>
-  simp[Once spin]
-QED
 
 Theorem bounded_trace_eq:
   (∀k'. s.clock < k' ⇒ (SND(evaluate(prog:'a prog,s))).ffi.io_events
