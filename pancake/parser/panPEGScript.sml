@@ -23,7 +23,7 @@ Datatype:
             | ParamListNT
             | EXorNT | EOrNT | EAndNT | EEqNT | ECmpNT
             | EShiftNT | EAddNT | EMulNT
-            | EBaseNT | EBoolAndNT
+            | EBaseNT | EBoolAndNT | ArrayNT
             | StructNT | LoadNT | LoadByteNT | LabelNT | FLabelNT
             | ShapeNT | ShapeCombNT
             | EqOpsNT | CmpOpsNT | ShiftOpsNT | AddOpsNT | MulOpsNT
@@ -263,6 +263,7 @@ Definition pancake_peg_def[nocompute]:
         (INL EBaseNT, seql [choicel [seql [consume_tok LParT;
                                            mknt ExpNT;
                                            consume_tok RParT] I;
+                                     mknt ArrayNT;
                                      mknt NotNT;
                                      keep_kw TrueK; keep_kw FalseK;
                                      keep_int; keep_ident; mknt LabelNT;
@@ -272,6 +273,9 @@ Definition pancake_peg_def[nocompute]:
                             rpt (seql [consume_tok DotT; keep_nat] I)
                                 FLAT]
                            (mksubtree EBaseNT));
+        (INL ArrayNT, seql [keep_ident; consume_tok LBrakT;
+                            mknt EBaseNT; consume_tok RBrakT]
+                          (mksubtree ArrayNT));
         (INL NotNT, seql [consume_tok NotT; mknt EBaseNT]
                            (mksubtree NotNT));
         (INL LabelNT, seql [consume_tok AndT; keep_ident]
@@ -623,7 +627,7 @@ end
 val topo_nts = [“MulOpsNT”, “AddOpsNT”, “ShiftOpsNT”, “CmpOpsNT”,
                 “EqOpsNT”, “ShapeNT”,
                 “ShapeCombNT”, “NotNT”, “LabelNT”, “FLabelNT”, “LoadByteNT”,
-                “LoadNT”, “StructNT”,
+                “LoadNT”, “StructNT”, “ArrayNT”,
                 “EBaseNT”, “EMulNT”, “EAddNT”, “EShiftNT”, “EAndNT”, “EXorNT”, “EOrNT”,
                 “ECmpNT”, “EEqNT”, “EBoolAndNT”,
                 “ExpNT”, “ArgListNT”, “ReturnNT”,

@@ -245,7 +245,14 @@ Definition conv_Exp_def:
       SOME (t::ts) => OPT_MMAP conv_Exp (t::ts)
     | _ => NONE) ∧
   (conv_Exp (Nd nodeNT args) =
-    if isNT nodeNT EBaseNT then
+   if isNT nodeNT ArrayNT then
+      case args of
+        [t1; t2] => do arr <- conv_var t1;
+                       idx <- conv_Exp t2;
+                       SOME $ Load One $ Op Add [arr; Panop Mul [BytesInWord; idx]]
+                    od
+      | _ => NONE
+   else if isNT nodeNT EBaseNT then
       case args of
         [] => NONE
       | [t] => conv_const t ++ conv_var t ++ conv_Exp t
