@@ -225,9 +225,12 @@ val treeEx8_and_a_half = check_success $ parse_pancake ex8_and_a_half;
 val ex9 = ‘
  fun testfun() {
    var a = @base;
+   var g = @biw;
    var b = 8;
    var c = @base + 16;
-   var d = 1;
+   var f = @base + @biw * 4;
+   d = lds 1 array + @biw * 4;
+   g = array[4];
    @out_morefun(a,b,c,d);
    stw @base, ic;
    return 0;
